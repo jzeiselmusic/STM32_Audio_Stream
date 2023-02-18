@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := Microphone
+BUILD_ARTIFACT_NAME := STM32_Audio_Stream
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-Microphone.elf \
+STM32_Audio_Stream.elf \
 
 MAP_FILES += \
-Microphone.map \
+STM32_Audio_Stream.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-Microphone.list \
+STM32_Audio_Stream.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: Microphone.elf secondary-outputs
+main-build: STM32_Audio_Stream.elf secondary-outputs
 
 # Tool invocations
-Microphone.elf Microphone.map: $(OBJS) $(USER_OBJS) /Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/STM32F407VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Microphone.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Microphone.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+STM32_Audio_Stream.elf STM32_Audio_Stream.map: $(OBJS) $(USER_OBJS) /home/jake/STM32CubeIDE/workspace_1.11.2/STM32_Audio_Stream/STM32F407VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "STM32_Audio_Stream.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/jake/STM32CubeIDE/workspace_1.11.2/STM32_Audio_Stream/STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32_Audio_Stream.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-Microphone.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "Microphone.list"
+STM32_Audio_Stream.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "STM32_Audio_Stream.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) Microphone.elf Microphone.list Microphone.map default.size.stdout
+	-$(RM) STM32_Audio_Stream.elf STM32_Audio_Stream.list STM32_Audio_Stream.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

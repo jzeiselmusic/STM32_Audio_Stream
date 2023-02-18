@@ -74,7 +74,6 @@ static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
 void Process_Data(char *);
 double low_pass_filter(double, double);
-void tanh_approx(double *);
 
 
 /* USER CODE END PFP */
@@ -391,13 +390,6 @@ double low_pass_filter(double left, double right) {
 		count = 15;
 	}
 	return return_value;
-}
-
-
-void tanh_approx(double *input_val) {
-	double temp_val = *input_val;
-	temp_val = (27 + temp_val * temp_val) / (27 + 9*temp_val*temp_val);
-	*input_val = temp_val;
 }
 
 /* USER CODE END 4 */
