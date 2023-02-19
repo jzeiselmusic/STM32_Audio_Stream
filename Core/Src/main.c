@@ -19,7 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdio.h>
-
+#include <stm32f4xx_hal_uart.h>
+#include <stm32f4xx_hal.h>
+#include <stm32f4xx_hal_i2s.h>
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -47,21 +49,21 @@ DMA_HandleTypeDef hdma_spi2_tx;
 UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
-uint16_t rx_buf[8];
-uint16_t tx_buf[8];
+uint16_t rx_buf[16];
+uint16_t tx_buf[16];
 
 
-double input_list[10];
-double output_list[10];
-int count;
+float input_list[4];
+float output_list[4];
+int count = 0;
 
-double b0 = 0.5887;
-double b1 = 1.7660;
-double b2 = 1.7660;
-double b3 = 0.5887;
-double a1 = 1.9630;
-double a2 = 1.4000;
-double a3 = 0.3464;
+float b0 = 0.5887;
+float b1 = 1.7660;
+float b2 = 1.7660;
+float b3 = 0.5887;
+float a1 = 1.9630;
+float a2 = 1.4000;
+float a3 = 0.3464;
 
 /* USER CODE END PV */
 
@@ -73,7 +75,7 @@ static void MX_I2S2_Init(void);
 static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
 void Process_Data(char *);
-double low_pass_filter(double, double);
+float low_pass_filter(float, float);
 
 
 /* USER CODE END PFP */
@@ -304,12 +306,14 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s) {
 void Process_Data(char *side) {
 	int start = 0;
 	if (*side == 0x01) {
-		start += 4;
+		start += 8;
 	}
 
-	int left_in = (((int)rx_buf[start]<<16)|rx_buf[start+1])>>8;
-	int right_in = (((int)rx_buf[start+2]<<16)|rx_buf[start+3])>>8;
+	int left_in_1 = (((int)rx_buf[start]<<16)|rx_buf[start+1])>>8;
+	int right_in_1 = (((int)rx_buf[start+2]<<16)|rx_buf[start+3])>>8;
 
+	int left_in_2 = (((int)rx_buf[start+4]<<16)|rx_buf[start+5])>>8;
+	int right_in_2 = (((int)rx_buf[start+6]<<16)|rx_buf[start+7])>>8;
 	//printf("ints:\r\n");
 	//printf("incoming left val:\t%d\r\n", left_in);
 	//printf("incoming right val:\t%d\r\n", right_in);
@@ -320,11 +324,15 @@ void Process_Data(char *side) {
 
 	// implement a simple tanh soft distortion mechanism
 
-	double float_left_in = (double)left_in;
-	double float_right_in = (double)right_in;
+	float float_left_in_1 = (float)left_in_1;
+	float float_right_in_1 = (float)right_in_1;
+	float float_left_in_2 = (float)left_in_2;
+	float float_right_in_2 = (float)right_in_2;
 
-	float_left_in = low_pass_filter(float_left_in, float_right_in);
-	float_right_in = float_left_in;
+	float_left_in_1 = low_pass_filter(float_left_in_1, float_right_in_1);
+	float_right_in_1 = float_left_in_1;
+	float_left_in_2 = low_pass_filter(float_left_in_2, float_right_in_2);
+	float_right_in_2 = float_left_in_2;
 
 	//float_left_in = float_left_in / 16777216.0;
 	//float_right_in = float_right_in / 16777216.0;
@@ -336,45 +344,39 @@ void Process_Data(char *side) {
 	//float_right_in = 2 * float_right_in * 16777216.0;
 
 
-	int left_out = (int)float_left_in;
-	int right_out = (int)float_right_in;
+	int left_out_1 = (int)float_left_in_1;
+	int right_out_1 = (int)float_right_in_1;
+	int left_out_2 = (int)float_left_in_2;
+	int right_out_2 = (int)float_right_in_2;
 
 	//int left_out = left_in;
 	//int right_out = right_in;
 
-	tx_buf[start] = (left_out>>8) & 0xFFFF;
-	tx_buf[start+1] = left_out & 0xFFFF;
-	tx_buf[start+2] = (right_out>>8) & 0xFFFF;
-	tx_buf[start+3] = right_out & 0xFFFF;
+	tx_buf[start] = (left_out_1>>8) & 0xFFFF;
+	tx_buf[start+1] = left_out_1 & 0xFFFF;
+	tx_buf[start+2] = (right_out_1>>8) & 0xFFFF;
+	tx_buf[start+3] = right_out_1 & 0xFFFF;
+	tx_buf[start+4] = (left_out_2>>8) & 0xFFFF;
+	tx_buf[start+5] = left_out_2 & 0xFFFF;
+	tx_buf[start+6] = (right_out_2>>8) & 0xFFFF;
+	tx_buf[start+7] = right_out_2 & 0xFFFF;
 }
 
 
 
-double low_pass_filter(double left, double right) {
+float low_pass_filter(float left, float right) {
 
-	double return_value;
-	input_list[9] = input_list[8];
-	input_list[8] = input_list[7];
-	input_list[7] = input_list[6];
-	input_list[6] = input_list[5];
-	input_list[5] = input_list[4];
-	input_list[4] = input_list[3];
+	float return_value;
 	input_list[3] = input_list[2];
 	input_list[2] = input_list[1];
 	input_list[1] = input_list[0];
 	input_list[0] = left;
 
-	output_list[9] = output_list[8];
-	output_list[8] = output_list[7];
-	output_list[7] = output_list[6];
-	output_list[6] = output_list[5];
-	output_list[5] = output_list[4];
-	output_list[4] = output_list[3];
 	output_list[3] = output_list[2];
 	output_list[2] = output_list[1];
 	output_list[1] = output_list[0];
 
-	if (count < 10) {
+	if (count < 4) {
 		output_list[0] = left;
 		return_value = output_list[0];
 	}
