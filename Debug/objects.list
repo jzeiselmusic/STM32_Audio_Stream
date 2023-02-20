@@ -1,4 +1,5 @@
 "./Core/Src/arm_dot_prod_f32.o"
+"./Core/Src/arm_float_to_q31.o"
 "./Core/Src/main.o"
 "./Core/Src/stm32f4xx_hal_msp.o"
 "./Core/Src/stm32f4xx_it.o"

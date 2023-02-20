@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdio.h>
+#include <arm_math_types.h>
 #include <stm32f4xx_hal_uart.h>
 #include <stm32f4xx_hal.h>
 #include <stm32f4xx_hal_i2s.h>
@@ -53,17 +54,17 @@ uint16_t rx_buf[16];
 uint16_t tx_buf[16];
 
 
-float input_list[4];
-float output_list[4];
+float32_t input_list[4];
+float32_t output_list[4];
 int count = 0;
 
-float b0 = 0.5887;
-float b1 = 1.7660;
-float b2 = 1.7660;
-float b3 = 0.5887;
-float a1 = 1.9630;
-float a2 = 1.4000;
-float a3 = 0.3464;
+float32_t b0 = 0.5887;
+float32_t b1 = 1.7660;
+float32_t b2 = 1.7660;
+float32_t b3 = 0.5887;
+float32_t a1 = 1.9630;
+float32_t a2 = 1.4000;
+float32_t a3 = 0.3464;
 
 /* USER CODE END PV */
 
@@ -75,7 +76,7 @@ static void MX_I2S2_Init(void);
 static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
 void Process_Data(char *);
-float low_pass_filter(float, float);
+float32_t low_pass_filter(float32_t, float32_t);
 
 
 /* USER CODE END PFP */
@@ -324,10 +325,10 @@ void Process_Data(char *side) {
 
 	// implement a simple tanh soft distortion mechanism
 
-	float float_left_in_1 = (float)left_in_1;
-	float float_right_in_1 = (float)right_in_1;
-	float float_left_in_2 = (float)left_in_2;
-	float float_right_in_2 = (float)right_in_2;
+	float32_t float_left_in_1 = (float32_t)left_in_1;
+	float32_t float_right_in_1 = (float32_t)right_in_1;
+	float32_t float_left_in_2 = (float32_t)left_in_2;
+	float32_t float_right_in_2 = (float32_t)right_in_2;
 
 	float_left_in_1 = low_pass_filter(float_left_in_1, float_right_in_1);
 	float_right_in_1 = float_left_in_1;
@@ -364,9 +365,9 @@ void Process_Data(char *side) {
 
 
 
-float low_pass_filter(float left, float right) {
+float32_t low_pass_filter(float32_t left, float32_t right) {
 
-	float return_value;
+	float32_t return_value;
 	input_list[3] = input_list[2];
 	input_list[2] = input_list[1];
 	input_list[1] = input_list[0];
