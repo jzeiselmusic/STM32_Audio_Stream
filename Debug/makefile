@@ -10,6 +10,7 @@ RM := rm -rf
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include Drivers/STM32F4xx_HAL_Driver/Src/subdir.mk
+-include DSP/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
 -include objects.mk
@@ -34,34 +35,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := STM32_Audio_Stream
+BUILD_ARTIFACT_NAME := Microphone
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-STM32_Audio_Stream.elf \
+Microphone.elf \
 
 MAP_FILES += \
-STM32_Audio_Stream.map \
+Microphone.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-STM32_Audio_Stream.list \
+Microphone.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: STM32_Audio_Stream.elf secondary-outputs
+main-build: Microphone.elf secondary-outputs
 
 # Tool invocations
-STM32_Audio_Stream.elf STM32_Audio_Stream.map: $(OBJS) $(USER_OBJS) /home/jake/STM32CubeIDE/workspace_1.11.2/STM32_Audio_Stream/STM32F407VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "STM32_Audio_Stream.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/jake/STM32CubeIDE/workspace_1.11.2/STM32_Audio_Stream/STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32_Audio_Stream.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Microphone.elf Microphone.map: $(OBJS) $(USER_OBJS) /Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/STM32F407VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Microphone.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Microphone.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +71,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-STM32_Audio_Stream.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "STM32_Audio_Stream.list"
+Microphone.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "Microphone.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) STM32_Audio_Stream.elf STM32_Audio_Stream.list STM32_Audio_Stream.map default.size.stdout
+	-$(RM) Microphone.elf Microphone.list Microphone.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
