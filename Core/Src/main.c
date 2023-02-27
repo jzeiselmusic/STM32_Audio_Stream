@@ -1,21 +1,4 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdio.h>
@@ -23,24 +6,8 @@
 #include <stm32f4xx_hal_uart.h>
 #include <stm32f4xx_hal.h>
 #include <stm32f4xx_hal_i2s.h>
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
+#include <basic_math_functions.h>
+#include <support_functions.h>
 
 /* Private variables ---------------------------------------------------------*/
 I2S_HandleTypeDef hi2s2;
@@ -58,13 +25,8 @@ float32_t input_list[4];
 float32_t output_list[4];
 int count = 0;
 
-float32_t b0 = 0.5887;
-float32_t b1 = 1.7660;
-float32_t b2 = 1.7660;
-float32_t b3 = 0.5887;
-float32_t a1 = 1.9630;
-float32_t a2 = 1.4000;
-float32_t a3 = 0.3464;
+float32_t b[4] = {0.5887, 1.7660, 1.7660, 0.5887};
+float32_t a[3] = {1.9630, 1.4000, 0.3464};
 
 /* USER CODE END PV */
 
@@ -131,17 +93,9 @@ int main(void)
 
   //uint8_t message[] = "transmit receive started!\n\r";
   printf("transmit receive started!\r\n");
-  //PRINT("transmit receive started!\n\r", sizeof("transmit receive started!\n\r"));
 
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -199,13 +153,6 @@ void SystemClock_Config(void)
 static void MX_I2S2_Init(void)
 {
 
-  /* USER CODE BEGIN I2S2_Init 0 */
-
-  /* USER CODE END I2S2_Init 0 */
-
-  /* USER CODE BEGIN I2S2_Init 1 */
-
-  /* USER CODE END I2S2_Init 1 */
   hi2s2.Instance = SPI2;
   hi2s2.Init.Mode = I2S_MODE_MASTER_TX;
   hi2s2.Init.Standard = I2S_STANDARD_PHILIPS;
@@ -233,13 +180,6 @@ static void MX_I2S2_Init(void)
 static void MX_UART4_Init(void)
 {
 
-  /* USER CODE BEGIN UART4_Init 0 */
-
-  /* USER CODE END UART4_Init 0 */
-
-  /* USER CODE BEGIN UART4_Init 1 */
-
-  /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
   huart4.Init.BaudRate = 115200;
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
@@ -252,10 +192,6 @@ static void MX_UART4_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN UART4_Init 2 */
-
-  /* USER CODE END UART4_Init 2 */
-
 }
 
 /**
@@ -315,9 +251,6 @@ void Process_Data(char *side) {
 
 	int left_in_2 = (((int)rx_buf[start+4]<<16)|rx_buf[start+5])>>8;
 	int right_in_2 = (((int)rx_buf[start+6]<<16)|rx_buf[start+7])>>8;
-	//printf("ints:\r\n");
-	//printf("incoming left val:\t%d\r\n", left_in);
-	//printf("incoming right val:\t%d\r\n", right_in);
 
 	// left in and right in are both 16 bit integers converted to 24 bit ints
 	// we can do processing on them here, as long as it is
@@ -335,23 +268,14 @@ void Process_Data(char *side) {
 	float_left_in_2 = low_pass_filter(float_left_in_2, float_right_in_2);
 	float_right_in_2 = float_left_in_2;
 
-	//float_left_in = float_left_in / 16777216.0;
-	//float_right_in = float_right_in / 16777216.0;
-
 	//tanh_approx(&float_left_in);
 	//tanh_approx(&float_right_in);
-
-	//float_left_in = 2 * float_left_in * 16777216.0;
-	//float_right_in = 2 * float_right_in * 16777216.0;
 
 
 	int left_out_1 = (int)float_left_in_1;
 	int right_out_1 = (int)float_right_in_1;
 	int left_out_2 = (int)float_left_in_2;
 	int right_out_2 = (int)float_right_in_2;
-
-	//int left_out = left_in;
-	//int right_out = right_in;
 
 	tx_buf[start] = (left_out_1>>8) & 0xFFFF;
 	tx_buf[start+1] = left_out_1 & 0xFFFF;
@@ -377,15 +301,25 @@ float32_t low_pass_filter(float32_t left, float32_t right) {
 	output_list[2] = output_list[1];
 	output_list[1] = output_list[0];
 
+  float32_t temp_output_list[3] = {output_list[1], output_list[2], output_list[3]};
+
 	if (count < 4) {
 		output_list[0] = left;
 		return_value = output_list[0];
 	}
 	else {
+    float32_t result_fir;
+    float32_t result_iir;
+    arm_dot_prod_f32(input_list, b, 4, &result_fir);
+    arm_dot_prod_f32(temp_output_list, a, 3, &result_iir);
+    output_list[0] = result_fir - result_iir;
+    return_value = output_list[0];
+    /*
 		output_list[0] = input_list[0]*b0 + input_list[1]*b1 + input_list[2]*b2
 						+ input_list[3]*b3 - output_list[1]*a1 - output_list[2]*a2
 						- output_list[3]*a3;
 		return_value = output_list[0];
+    */
 	}
 
 	count++;
@@ -394,8 +328,6 @@ float32_t low_pass_filter(float32_t left, float32_t right) {
 	}
 	return return_value;
 }
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -409,7 +341,6 @@ void Error_Handler(void)
   while (1)
   {
   }
-  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
