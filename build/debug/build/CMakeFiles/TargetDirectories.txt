@@ -1,3 +1,0 @@
-/Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/build/debug/build/CMakeFiles/rebuild_cache.dir
-/Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/build/debug/build/CMakeFiles/edit_cache.dir
-/Users/jacobzeisel/STM32CubeIDE/workspace_1/Microhone/build/debug/build/CMakeFiles/Microphone.dir

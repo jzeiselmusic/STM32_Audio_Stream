@@ -1,0 +1,13 @@
+.mxproject
+.project
+.vs
+.vscode
+.settings
+*.txt
+*.json
+*.ld
+*.launch
+*.ioc
+Debug/*
+build/*
+
