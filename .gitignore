@@ -10,4 +10,6 @@
 *.ioc
 Debug/*
 build/*
+cmake/*
+.gitignore.swp
 
