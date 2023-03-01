@@ -198,7 +198,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_spi.h"
+
 /** @addtogroup STM32F4xx_HAL_Driver
   * @{
   */
@@ -207,7 +207,7 @@
   * @brief SPI HAL module driver
   * @{
   */
-
+#ifdef HAL_SPI_MODULE_ENABLED
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private defines -----------------------------------------------------------*/
@@ -3903,6 +3903,7 @@ static void SPI_AbortTx_ISR(SPI_HandleTypeDef *hspi)
   * @}
   */
 
+#endif /* HAL_SPI_MODULE_ENABLED */
 
 /**
   * @}
