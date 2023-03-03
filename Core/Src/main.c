@@ -1,15 +1,18 @@
 
 
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <arm_math_types.h>
 #include <basic_math_functions.h>
 #include <support_functions.h>
 
-/* Private includes ----------------------------------------------------------*/
+/* Private defines ----------------------------------------------------------*/
 
+#define SPI_TIMEOUT 100000
 
 /* Private variables ---------------------------------------------------------*/
 I2S_HandleTypeDef hi2s2;
@@ -21,20 +24,21 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart4;
 
 osThreadId LEDScreenTaskHandle;
-osThreadId TickDelayTaskHandle;
 /* USER CODE BEGIN PV */
 uint16_t rx_buf[16];
 uint16_t tx_buf[16];
-
 
 float32_t input_list[4];
 float32_t output_list[4];
 
 int count = 0;
-uint8_t turn_off_flag = 0;
-
 float32_t b[4] = {0.5887, 1.7660, 1.7660, 0.5887};
 float32_t a[3] = {1.9630, 1.4000, 0.3464};
+
+uint32_t avg = 0;
+uint8_t list_counter = 0;
+uint32_t average_volume_list[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+#define LIST_LEN 16
 
 /* USER CODE END PV */
 
@@ -45,22 +49,24 @@ static void MX_DMA_Init(void);
 static void MX_I2S2_Init(void);
 static void MX_UART4_Init(void);
 static void MX_SPI1_Init(void);
-void LEDScreenTask(void const * argument);
-void TickDelayTask(void const * argument);
+uint32_t update_and_calculate_average(uint32_t);
+void send_SPI_message(uint8_t *, uint16_t);
+void start_LED_screen(void);
+void turnoff_LED_screen(void);
+void clear_LED_screen(void);
+void draw_Rectangle(void);
+void LEDScreenTask(void const *);
+void TickDelayTask(void const *);
 
 /* USER CODE BEGIN PFP */
 void Process_Data(char *);
 float32_t low_pass_filter(float32_t, float32_t);
 
-
-/* USER CODE END PFP */
-
 int _write(int fd, char *ptr, int len)
 {
-	HAL_UART_Transmit_DMA(&huart4, (uint8_t*) ptr, len);
+	HAL_UART_Transmit(&huart4, (uint8_t*) ptr, len, SPI_TIMEOUT);
 	return len;
 }
-
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -87,15 +93,15 @@ int main(void)
   MX_UART4_Init();
   MX_SPI1_Init();
 
+
+  printf("starting up...\n\r");
+
   HAL_I2SEx_TransmitReceive_DMA(&hi2s2, tx_buf, rx_buf, 8);
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
   osThreadDef(LEDTask, LEDScreenTask, osPriorityNormal, 0, 128);
   LEDScreenTaskHandle = osThreadCreate(osThread(LEDTask), NULL);
-
-  osThreadDef(DelayTask, TickDelayTask, osPriorityNormal, 0, 128);
-  TickDelayTaskHandle = osThreadCreate(osThread(DelayTask), NULL);
 
   /* Start scheduler */
   osKernelStart();
@@ -131,7 +137,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 168;
+  RCC_OscInitStruct.PLL.PLLN = 80;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -145,10 +151,10 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV16;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -186,7 +192,6 @@ static void MX_I2S2_Init(void)
 static void MX_SPI1_Init(void)
 {
 
-  /* SPI1 parameter configuration*/
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
@@ -194,7 +199,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -203,9 +208,10 @@ static void MX_SPI1_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN SPI1_Init 2 */
 
-  /* USER CODE END SPI1_Init 2 */
+  uint8_t data[1] = {0x00};
+  // send initial empty message to initialize values
+  send_SPI_message(data, 1);
 
 }
 
@@ -265,6 +271,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
@@ -273,7 +280,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_RESET);
+
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA6 */
   GPIO_InitStruct.Pin = GPIO_PIN_6;
@@ -296,7 +305,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+
+  GPIO_InitStruct.Pin = GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
 }
+
+
 
 void HAL_I2SEx_TxRxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
 	char side = 0x00;
@@ -324,23 +348,12 @@ void Process_Data(char *side) {
 	// we can do processing on them here, as long as it is
 	// done in time for the buffer to be passed on by the DMA unit
 
-	// implement a simple tanh soft distortion mechanism
+	avg = update_and_calculate_average((uint32_t)abs(left_in_1));
 
-	float32_t float_left_in_1 = (float32_t)left_in_1;
-	float32_t float_right_in_1 = (float32_t)right_in_1;
-	float32_t float_left_in_2 = (float32_t)left_in_2;
-	float32_t float_right_in_2 = (float32_t)right_in_2;
-
-	//float_left_in_1 = low_pass_filter(float_left_in_1, float_right_in_1);
-	//float_left_in_2 = low_pass_filter(float_left_in_2, float_right_in_2);
-
-	//float_right_in_1 = float_left_in_1;
-	//float_right_in_2 = float_left_in_2;
-
-	int left_out_1 = (int)float_left_in_1;
-	int right_out_1 = (int)float_right_in_1;
-	int left_out_2 = (int)float_left_in_2;
-	int right_out_2 = (int)float_right_in_2;
+	int left_out_1 = left_in_1;
+	int right_out_1 = right_in_1;
+	int left_out_2 = left_in_2;
+	int right_out_2 = right_in_2;
 
 	tx_buf[start] = (left_out_1>>8) & 0xFFFF;
 	tx_buf[start+1] = left_out_1 & 0xFFFF;
@@ -395,23 +408,74 @@ float32_t low_pass_filter(float32_t left, float32_t right) {
 }
 
 
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void LEDScreenTask(void const * argument)
+{
+  /* USER CODE BEGIN 5 */
+  start_LED_screen();
+  draw_Rectangle();
+  osDelay(2000);
+  //clear_LED_screen();
+  /* Infinite loop */
+  GPIO_PinState val;
+  for(;;)
+  {
+	osDelay(100);
 
 
-void TickDelayTask(void const * argument) {
-	osDelay(20000);
-	turn_off_flag = 1;
-	vTaskDelete(NULL);
+	printf("%lu\n\r", avg);
+	printf("\t[%lu, %lu, %lu, %lu]\n\r",
+			average_volume_list[0],
+			average_volume_list[1],
+			average_volume_list[2],
+			average_volume_list[3]);
+
+
+    val = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4);
+    if (val == GPIO_PIN_RESET) {
+    	turnoff_LED_screen();
+    	vTaskDelete(NULL);
+    } else {
+    	if (avg > 8000000) {
+    		clear_LED_screen();
+    	}
+    }
+  }
+  /* USER CODE END 5 */
+}
+
+void send_SPI_message(uint8_t *pData, uint16_t Size) {
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_RESET); // set NSS to low
+	HAL_SPI_Transmit(&hspi1, pData, Size, SPI_TIMEOUT);
+	//osDelay(1);
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_SET);
 }
 
 
 
+uint32_t update_and_calculate_average(uint32_t value) {
+	average_volume_list[list_counter] =value;
+	int sum = 0;
+	for (int i = 0; i < 4; ++i) {
+		sum += average_volume_list[list_counter + i];
+	}
+	sum = sum / 4;
+	list_counter ++;
+	list_counter = list_counter % 4;
+	return sum;
+}
 
 
+void start_LED_screen(void) {
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // set D/C to low always
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // bring VCCen low
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_SET); // set NSS to high
 
-
-void LEDScreenTask(void const * argument)
-{
-  /* USER CODE BEGIN 5 */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET); // set RESET to high
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET); // set PMOD_EN to high
   osDelay(20); // wait 20 ms
@@ -421,73 +485,110 @@ void LEDScreenTask(void const * argument)
   osDelay(1);
 
   uint8_t pData[2] = {0xFD, 0x12};
-  HAL_SPI_Transmit(&hspi1, pData, 2, 1000);
+  send_SPI_message(pData, 2);
   uint8_t pData1[1] = {0xAE};
-  HAL_SPI_Transmit(&hspi1, pData1, 1, 1000);
+  send_SPI_message(pData1, 1);
   uint8_t pData2[2] = {0xA0, 0x72};
-  HAL_SPI_Transmit(&hspi1, pData2, 2, 1000);
+  send_SPI_message(pData2, 2);
   uint8_t pData3[2] = {0xA1, 0x00};
-  HAL_SPI_Transmit(&hspi1, pData3, 2, 1000);
+  send_SPI_message(pData3, 2);
   uint8_t pData4[2] = {0xA2, 0x00};
-  HAL_SPI_Transmit(&hspi1, pData4, 2, 1000);
-  uint8_t pData5[1] = {0xA4};
-  HAL_SPI_Transmit(&hspi1, pData5, 1, 1000);
+  send_SPI_message(pData4, 2);
+  uint8_t pData5[1] = {0xA5}; 	// turn the screen white instead of black
+  send_SPI_message(pData5, 1);
   uint8_t pData6[2] = {0xA8, 0x3F};
-  HAL_SPI_Transmit(&hspi1, pData6, 2, 1000);
+  send_SPI_message(pData6, 2);
   uint8_t pData7[2] = {0xAD, 0x8E};
-  HAL_SPI_Transmit(&hspi1, pData7, 2, 1000);
+  send_SPI_message(pData7, 2);
   uint8_t pData8[2] = {0xB0, 0x0B};
-  HAL_SPI_Transmit(&hspi1, pData8, 2, 1000);
+  send_SPI_message(pData8, 2);
   uint8_t pData9[2] = {0xB1, 0x31};
-  HAL_SPI_Transmit(&hspi1, pData9, 2, 1000);
+  send_SPI_message(pData9, 2);
   uint8_t pData10[2] = {0xB3, 0xF0};
-  HAL_SPI_Transmit(&hspi1, pData10, 2, 1000);
+  send_SPI_message(pData10, 2);
   uint8_t pData11[2] = {0x8A, 0x64};
-  HAL_SPI_Transmit(&hspi1, pData11, 2, 1000);
+  send_SPI_message(pData11, 2);
   uint8_t pData12[2] = {0x8B, 0x78};
-  HAL_SPI_Transmit(&hspi1, pData12, 2, 1000);
+  send_SPI_message(pData12, 2);
   uint8_t pData13[2] = {0x8C, 0x64};
-  HAL_SPI_Transmit(&hspi1, pData13, 2, 1000);
+  send_SPI_message(pData13, 2);
   uint8_t pData14[2] = {0xBB, 0x3A};
-  HAL_SPI_Transmit(&hspi1, pData14, 2, 1000);
+  send_SPI_message(pData14, 2);
   uint8_t pData15[2] = {0xBE, 0x3E};
-  HAL_SPI_Transmit(&hspi1, pData15, 2, 1000);
+  send_SPI_message(pData15, 2);
   uint8_t pData16[2] = {0x87, 0x06};
-  HAL_SPI_Transmit(&hspi1, pData16, 2, 1000);
+  send_SPI_message(pData16, 2);
   uint8_t pData17[2] = {0x81, 0x91};
-  HAL_SPI_Transmit(&hspi1, pData17, 2, 1000);
+  send_SPI_message(pData17, 2);
   uint8_t pData18[2] = {0x82, 0x50};
-  HAL_SPI_Transmit(&hspi1, pData18, 2, 1000);
+  send_SPI_message(pData18, 2);
   uint8_t pData19[2] = {0x83, 0x7D};
-  HAL_SPI_Transmit(&hspi1, pData19, 2, 1000);
+  send_SPI_message(pData19, 2);
   uint8_t pData20[1] = {0x2E};
-  HAL_SPI_Transmit(&hspi1, pData20, 1, 1000);
+  send_SPI_message(pData20, 1);
   uint8_t pData21[5] = {0x25, 0x00, 0x00, 0x5F, 0x3F};
-  HAL_SPI_Transmit(&hspi1, pData21, 5, 1000);
+  send_SPI_message(pData21, 5);
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // set RESET back to high
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // set VCCen back to high
   osDelay(25);
 
-  uint8_t pData22[1] = {0xA5};
-  HAL_SPI_Transmit(&hspi1, pData22, 1, 1000);
-  osDelay(100);
+  uint8_t pData22[1] = {0xAF};
+  send_SPI_message(pData22, 1);
+  osDelay(1000);
 
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-    if (turn_off_flag == 1) {
-    	uint8_t pData23[1] = {0xAE};
-    	HAL_SPI_Transmit(&hspi1, pData23, 1, 1000);
-    	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET);
-    	osDelay(400);
-    	vTaskDelete(NULL);
-    }
-  }
-  /* USER CODE END 5 */
+  uint8_t turn_black[1] = {0xA4};
+  send_SPI_message(turn_black, 1);
+
 }
 
 
+
+void turnoff_LED_screen(void) {
+	uint8_t pData23[1] = {0xAE};
+	send_SPI_message(pData23, 1);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET);
+	osDelay(400);
+}
+
+
+void draw_Rectangle(void) {
+	// draw a rectangle command
+	uint8_t pDataDrawRect[1] = {0x22};
+	send_SPI_message(pDataDrawRect, 1);
+	uint8_t pData24[1] = {0x03};
+	send_SPI_message(pData24, 1);
+	uint8_t pData25[1] = {0x02};
+	send_SPI_message(pData25, 1);
+	uint8_t pData26[1] = {0x12};
+	send_SPI_message(pData26, 1);
+	uint8_t pData27[1] = {0x15};
+	send_SPI_message(pData27, 1);
+	uint8_t color1[1] = {0x28};
+	send_SPI_message(color1, 1);
+	uint8_t color2[1] = {0x00};
+	send_SPI_message(color2, 1);
+	uint8_t color3[1] = {0x00};
+	send_SPI_message(color3, 1);
+	uint8_t color4[1] = {0x28};
+	send_SPI_message(color4, 1);
+	uint8_t color5[1] = {0x00};
+	send_SPI_message(color5, 1);
+	uint8_t color6[1] = {0x00};
+	send_SPI_message(color6, 1);
+}
+
+void clear_LED_screen(void) {
+	// clear screen send 0x25, 0x00, 0x00, 0x5f, 0x3f
+	uint8_t clear_screen[1] = {0x25};
+	uint8_t data1[1] = {0x00};
+	uint8_t data2[1] = {0x5f};
+	uint8_t data3[1] = {0x3f};
+	send_SPI_message(clear_screen, 1);
+	send_SPI_message(data1, 1);
+	send_SPI_message(data1, 1);
+	send_SPI_message(data2, 1);
+	send_SPI_message(data3, 1);
+}
 
 
 
