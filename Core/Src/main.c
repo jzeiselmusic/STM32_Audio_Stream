@@ -13,6 +13,7 @@
 /* Private defines ----------------------------------------------------------*/
 
 #define SPI_TIMEOUT 100000
+#define LIST_LEN 16
 
 /* Private variables ---------------------------------------------------------*/
 I2S_HandleTypeDef hi2s2;
@@ -35,10 +36,11 @@ int count = 0;
 float32_t b[4] = {0.5887, 1.7660, 1.7660, 0.5887};
 float32_t a[3] = {1.9630, 1.4000, 0.3464};
 
-uint32_t avg = 0;
+volatile uint32_t avg = 0;
 uint8_t list_counter = 0;
-uint32_t average_volume_list[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-#define LIST_LEN 16
+volatile uint32_t average_volume_list[LIST_LEN] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+volatile float32_t volume_list_float[LIST_LEN] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /* USER CODE END PV */
 
@@ -54,7 +56,7 @@ void send_SPI_message(uint8_t *, uint16_t);
 void start_LED_screen(void);
 void turnoff_LED_screen(void);
 void clear_LED_screen(void);
-void draw_Rectangle(void);
+void draw_Rectangle(uint8_t, uint8_t, uint8_t, uint8_t);
 void LEDScreenTask(void const *);
 void TickDelayTask(void const *);
 
@@ -199,7 +201,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -284,35 +286,43 @@ static void MX_GPIO_Init(void)
 
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA6 */
+
   GPIO_InitStruct.Pin = GPIO_PIN_6;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC4 PC5 */
+
   GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB0 */
+
   GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-
+  // this is the output for NSS
   GPIO_InitStruct.Pin = GPIO_PIN_11;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
+  // this is the clear screen button K0
   GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  // this is the grow box button K1
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -349,6 +359,12 @@ void Process_Data(char *side) {
 	// done in time for the buffer to be passed on by the DMA unit
 
 	avg = update_and_calculate_average((uint32_t)abs(left_in_1));
+	/*printf("%lu\n\r", avg);
+	printf("\t[%lu, %lu, %lu, %lu]\n\r",
+			average_volume_list[0],
+			average_volume_list[1],
+			average_volume_list[2],
+			average_volume_list[3]);*/
 
 	int left_out_1 = left_in_1;
 	int right_out_1 = right_in_1;
@@ -392,12 +408,6 @@ float32_t low_pass_filter(float32_t left, float32_t right) {
     arm_dot_prod_f32(temp_output_list, a, 3, &result_iir);
     output_list[0] = result_fir - result_iir;
     return_value = output_list[0];
-    /*
-		output_list[0] = input_list[0]*b0 + input_list[1]*b1 + input_list[2]*b2
-						+ input_list[3]*b3 - output_list[1]*a1 - output_list[2]*a2
-						- output_list[3]*a3;
-		return_value = output_list[0];
-    */
 	}
 
 	count++;
@@ -418,31 +428,68 @@ void LEDScreenTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
   start_LED_screen();
-  draw_Rectangle();
-  osDelay(2000);
+  uint8_t start_column = 0x08;
+  uint8_t start_row = 0x01;
+  uint8_t end_column = 0x0E;
+  uint8_t end_row = 0x06;
+
+  uint8_t row_ender;
+
+  for (uint8_t m = 0; (start_column + m) < 95; m += 8) {
+	  for (uint8_t n = 0; (start_row + n) < 63; n += 8) {
+		  draw_Rectangle(start_column + m, start_row + n, end_column + m, end_row + n);
+
+	  }
+  }
+
+
+
+  osDelay(1000);
   //clear_LED_screen();
   /* Infinite loop */
-  GPIO_PinState val;
+  GPIO_PinState val, val2;
   for(;;)
   {
 	osDelay(100);
+	clear_LED_screen();
+	osDelay(1);
+	if (avg < 2000000) {
+		row_ender = 7;
+	} else if (avg < 3000000) {
+		row_ender = 15;
+	} else if (avg < 4000000) {
+		row_ender = 23;
+	} else if (avg < 5000000) {
+		row_ender = 31;
+	} else if (avg < 6000000) {
+		row_ender = 39;
+	} else if (avg < 7000000) {
+		row_ender = 47;
+	} else {
+		row_ender = 55;
+	}
 
+	for (uint8_t m = 0; (start_column + m) < 95; m += 8) {
+		  for (uint8_t n = 0; (start_row + n) < row_ender; n += 8) {
+			  draw_Rectangle(start_column + m, start_row + n, end_column + m, end_row + n);
 
-	printf("%lu\n\r", avg);
-	printf("\t[%lu, %lu, %lu, %lu]\n\r",
-			average_volume_list[0],
-			average_volume_list[1],
-			average_volume_list[2],
-			average_volume_list[3]);
+		  }
+	 }
 
 
     val = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4);
+    val2 = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3);
     if (val == GPIO_PIN_RESET) {
-    	turnoff_LED_screen();
+    	clear_LED_screen();
     	vTaskDelete(NULL);
     } else {
-    	if (avg > 8000000) {
+    	if (val2 == GPIO_PIN_RESET) {
+    		end_row++;
+    		end_column++;
     		clear_LED_screen();
+    		osDelay(100);
+    		draw_Rectangle(start_row, start_column, end_row, end_column);
+    		osDelay(100);
     	}
     }
   }
@@ -459,14 +506,14 @@ void send_SPI_message(uint8_t *pData, uint16_t Size) {
 
 
 uint32_t update_and_calculate_average(uint32_t value) {
-	average_volume_list[list_counter] =value;
+	average_volume_list[list_counter] = value;
 	int sum = 0;
-	for (int i = 0; i < 4; ++i) {
-		sum += average_volume_list[list_counter + i];
+	for (int i = 0; i < LIST_LEN; i++) {
+		sum += average_volume_list[i];
 	}
-	sum = sum / 4;
-	list_counter ++;
-	list_counter = list_counter % 4;
+	sum = sum / LIST_LEN;
+	list_counter++;
+	list_counter = list_counter % LIST_LEN;
 	return sum;
 }
 
@@ -551,21 +598,22 @@ void turnoff_LED_screen(void) {
 }
 
 
-void draw_Rectangle(void) {
+void draw_Rectangle(uint8_t start_column, uint8_t start_row,
+					uint8_t end_column, uint8_t end_row) {
 	// draw a rectangle command
 	uint8_t pDataDrawRect[1] = {0x22};
 	send_SPI_message(pDataDrawRect, 1);
-	uint8_t pData24[1] = {0x03};
+	uint8_t pData24[1] = {start_column};
 	send_SPI_message(pData24, 1);
-	uint8_t pData25[1] = {0x02};
+	uint8_t pData25[1] = {start_row};
 	send_SPI_message(pData25, 1);
-	uint8_t pData26[1] = {0x12};
+	uint8_t pData26[1] = {end_column};
 	send_SPI_message(pData26, 1);
-	uint8_t pData27[1] = {0x15};
+	uint8_t pData27[1] = {end_row};
 	send_SPI_message(pData27, 1);
 	uint8_t color1[1] = {0x28};
 	send_SPI_message(color1, 1);
-	uint8_t color2[1] = {0x00};
+	uint8_t color2[1] = {0x10};
 	send_SPI_message(color2, 1);
 	uint8_t color3[1] = {0x00};
 	send_SPI_message(color3, 1);
