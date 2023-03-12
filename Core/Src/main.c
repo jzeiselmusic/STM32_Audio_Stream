@@ -355,7 +355,6 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s) {
 
 void Process_Data(char *side) {
 	int start = 0;
-	uint32_t temp_avg;
 
 	if (*side == 0x01) {
 		start += 8;
@@ -371,7 +370,7 @@ void Process_Data(char *side) {
 	// we can do processing on them here, as long as it is
 	// done in time for the buffer to be passed on by the DMA unit
 
-	avg = update_and_calculate_average((uint32_t)abs(left_in_1)); // calculate average of last 16 samples
+	avg = update_and_calculate_average((uint32_t)abs(left_in_1)); // calculate average of last LIST_LEN samples
 
 	int left_out_1 = left_in_1;
 	int right_out_1 = right_in_1;
@@ -457,7 +456,7 @@ void LEDScreenTask(void const * argument)
   GPIO_PinState val, val2;
   for(;;)
   {
-	osDelay(50);
+	osDelay(20);
 	clear_LED_screen();
 	osDelay(1);
 	avg = low_pass_filter((float32_t)avg);
