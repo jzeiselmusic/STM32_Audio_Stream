@@ -13,7 +13,8 @@
 /* Private defines ----------------------------------------------------------*/
 
 #define SPI_TIMEOUT 100000
-#define LIST_LEN 16
+#define LIST_LEN 32
+#define N 5
 
 /* Private variables ---------------------------------------------------------*/
 I2S_HandleTypeDef hi2s2;
@@ -29,18 +30,31 @@ osThreadId LEDScreenTaskHandle;
 uint16_t rx_buf[16];
 uint16_t tx_buf[16];
 
-float32_t input_list[4];
-float32_t output_list[4];
+float32_t input_list[N+1];
+float32_t output_list[N+1];
 
 int count = 0;
-float32_t b[4] = {0.5887, 1.7660, 1.7660, 0.5887};
-float32_t a[3] = {1.9630, 1.4000, 0.3464};
+// butterworth filter with N= 3 and cutoff ~.83
+//float32_t b[4] = {0.5887, 1.7660, 1.7660, 0.5887};
+//float32_t a[3] = {1.9630, 1.4000, 0.3464};
+
+// butterworth filter with N= 3 and cutoff = .6
+//float32_t b[4] = {.2569, .7707, .7707, .2569};
+//float32_t a[3] = {.577241, .421787, .056297};
+
+// butterworth filter with N= 3 and cutoff = .5
+//float32_t b[4] = {.1667, .500, .500, .1667};
+//float32_t a[3] = {0, .33333, 0};
+
+// butterworth filter with N= 5 and cutoff = .5
+float32_t b[6] = {0.052786, 0.263932, 0.527864, 0.263932, 0.052786};
+float32_t a[5] = {0, .63344, 0, .055728, 0};
+
 
 volatile uint32_t avg = 0;
 uint8_t list_counter = 0;
-volatile uint32_t average_volume_list[LIST_LEN] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-
-volatile float32_t volume_list_float[LIST_LEN] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+volatile uint32_t average_volume_list[LIST_LEN] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+													0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /* USER CODE END PV */
 
@@ -62,7 +76,7 @@ void TickDelayTask(void const *);
 
 /* USER CODE BEGIN PFP */
 void Process_Data(char *);
-float32_t low_pass_filter(float32_t, float32_t);
+float32_t low_pass_filter(float32_t);
 
 int _write(int fd, char *ptr, int len)
 {
@@ -253,9 +267,6 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
-  /* DMA1_Stream4_IRQn interrupt configuration */
-  //HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5, 0);
-  //HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
 
 }
 
@@ -344,6 +355,8 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s) {
 
 void Process_Data(char *side) {
 	int start = 0;
+	uint32_t temp_avg;
+
 	if (*side == 0x01) {
 		start += 8;
 	}
@@ -358,13 +371,7 @@ void Process_Data(char *side) {
 	// we can do processing on them here, as long as it is
 	// done in time for the buffer to be passed on by the DMA unit
 
-	avg = update_and_calculate_average((uint32_t)abs(left_in_1));
-	/*printf("%lu\n\r", avg);
-	printf("\t[%lu, %lu, %lu, %lu]\n\r",
-			average_volume_list[0],
-			average_volume_list[1],
-			average_volume_list[2],
-			average_volume_list[3]);*/
+	avg = update_and_calculate_average((uint32_t)abs(left_in_1)); // calculate average of last 16 samples
 
 	int left_out_1 = left_in_1;
 	int right_out_1 = right_in_1;
@@ -383,36 +390,36 @@ void Process_Data(char *side) {
 
 
 
-float32_t low_pass_filter(float32_t left, float32_t right) {
+float32_t low_pass_filter(float32_t left) {
 
 	float32_t return_value;
-	input_list[3] = input_list[2];
-	input_list[2] = input_list[1];
-	input_list[1] = input_list[0];
+	for (int i = 0; i < N; i++) {
+		input_list[N-i] = input_list[N-i-1];
+		output_list[N-i] = output_list[N-i-1];
+	}
 	input_list[0] = left;
+    float32_t temp_output_list[N] = {0};
 
-	output_list[3] = output_list[2];
-	output_list[2] = output_list[1];
-	output_list[1] = output_list[0];
-
-  float32_t temp_output_list[3] = {output_list[1], output_list[2], output_list[3]};
-
-	if (count < 4) {
+    // this is where things get wonky
+    for (int j = 0; j < N; j++) {
+    	temp_output_list[j] = output_list[j+1];
+    }
+	if (count < 16) {
 		output_list[0] = left;
 		return_value = output_list[0];
 	}
 	else {
-    float32_t result_fir;
-    float32_t result_iir;
-    arm_dot_prod_f32(input_list, b, 4, &result_fir);
-    arm_dot_prod_f32(temp_output_list, a, 3, &result_iir);
-    output_list[0] = result_fir - result_iir;
-    return_value = output_list[0];
+		float32_t result_fir;
+		float32_t result_iir;
+		arm_dot_prod_f32(input_list, b, N+1, &result_fir);
+		arm_dot_prod_f32(temp_output_list, a, N, &result_iir);
+		output_list[0] = result_fir - result_iir;
+		return_value = output_list[0];
 	}
 
 	count++;
-	if (count > 15) {
-		count = 15;
+	if (count > 16) {
+		count = 16;
 	}
 	return return_value;
 }
@@ -450,20 +457,21 @@ void LEDScreenTask(void const * argument)
   GPIO_PinState val, val2;
   for(;;)
   {
-	osDelay(100);
+	osDelay(50);
 	clear_LED_screen();
 	osDelay(1);
-	if (avg < 2000000) {
+	avg = low_pass_filter((float32_t)avg);
+	if (avg < 500000) {
 		row_ender = 7;
-	} else if (avg < 3000000) {
+	} else if (avg < 1000000) {
 		row_ender = 15;
-	} else if (avg < 4000000) {
+	} else if (avg < 2000000) {
 		row_ender = 23;
-	} else if (avg < 5000000) {
+	} else if (avg < 3000000) {
 		row_ender = 31;
-	} else if (avg < 6000000) {
+	} else if (avg < 4000000) {
 		row_ender = 39;
-	} else if (avg < 7000000) {
+	} else if (avg < 5000000) {
 		row_ender = 47;
 	} else {
 		row_ender = 55;
