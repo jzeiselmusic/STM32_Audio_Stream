@@ -4,7 +4,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <math.h>
-#include "cmsis_os.h"
+#include "../../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <arm_math_types.h>
