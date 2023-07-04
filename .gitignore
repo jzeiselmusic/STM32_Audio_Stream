@@ -4,6 +4,7 @@
 .vscode
 .settings
 *.txt
+!CMakeLists.txt
 *.json
 *.launch
 *.ioc
