@@ -3,13 +3,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "FreeRTOS.h"
+#include "FreeRTOSConfig.h"
+#include "cmsis_os.h"
 #include <math.h>
-#include "../../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <arm_math_types.h>
-#include <basic_math_functions.h>
-#include <support_functions.h>
+#include "arm_math_types.h"
+#include "basic_math_functions.h"
+#include "support_functions.h"
 
 /* Private defines ----------------------------------------------------------*/
 
@@ -44,6 +44,7 @@ float Q_rsqrt(float);
 complex complexAdd(complex, complex);
 complex complexMult(complex, complex);
 float cabsf_0(complex);
+int my_abs(int);
 
 /* USER CODE BEGIN PFP */
 void Process_Data(char *);
@@ -60,6 +61,7 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart4;
 
 osThreadId LEDScreenTaskHandle;
+
 /* USER CODE BEGIN PV */
 uint16_t rx_buf[16];
 uint16_t tx_buf[16];
@@ -68,17 +70,6 @@ float32_t input_list[N+1];
 float32_t output_list[N+1];
 
 int count = 0;
-// butterworth filter with N= 3 and cutoff ~.83
-//float32_t b[4] = {0.5887, 1.7660, 1.7660, 0.5887};
-//float32_t a[3] = {1.9630, 1.4000, 0.3464};
-
-// butterworth filter with N= 3 and cutoff = .6
-//float32_t b[4] = {.2569, .7707, .7707, .2569};
-//float32_t a[3] = {.577241, .421787, .056297};
-
-// butterworth filter with N= 3 and cutoff = .5
-//float32_t b[4] = {.1667, .500, .500, .1667};
-//float32_t a[3] = {0, .33333, 0};
 
 // butterworth filter with N= 5 and cutoff = .5
 float32_t b[6] = {0.052786, 0.263932, 0.527864, 0.263932, 0.052786};
@@ -191,10 +182,12 @@ complex twiddle_factors[16] =
 
 
 /* Private user code ---------------------------------------------------------*/
-int _write(int fd, char *ptr, int len)
+
+int my_abs(int n)
 {
-	HAL_UART_Transmit(&huart4, (uint8_t*) ptr, len, SPI_TIMEOUT);
-	return len;
+	if (n == 0) return 0;
+	else if (n > 0) return n;
+	else return -1*n;
 }
 
 /**
@@ -218,9 +211,6 @@ int main(void)
   MX_I2S2_Init();
   MX_UART4_Init();
   MX_SPI1_Init();
-
-
-  printf("starting up...\n\r");
 
   HAL_I2SEx_TransmitReceive_DMA(&hi2s2, tx_buf, rx_buf, 8);
 
@@ -480,7 +470,7 @@ void Process_Data(char *side) {
 	// we can do processing on them here, as long as it is
 	// done in time for the buffer to be passed on by the DMA unit
 
-	avg = update_and_calculate_average((uint32_t)abs(left_in_1)); // calculate average of last LIST_LEN samples
+	avg = update_and_calculate_average((uint32_t)my_abs(left_in_1)); // calculate average of last LIST_LEN samples
 
 	int left_out_1 = left_in_1;
 	int right_out_1 = right_in_1;
@@ -560,8 +550,6 @@ void calculate_FFT(void) {
 	first_vals[14] = (float)temp_average_volume_list[14];
 	first_vals[15] = (float)temp_average_volume_list[15];
 
-	//printf("first_vals_9: %d\n\r", (int)(first_vals[9]));
-
 	second_vals[0] = (complex){.real = first_vals[0] + first_vals[1], .img = 0.0};
 	second_vals[1] = (complex){.real = first_vals[0] + first_vals[1], .img = 0.0};
 	second_vals[2] = (complex){.real = first_vals[2] + first_vals[3], .img = 0.0};
@@ -582,8 +570,6 @@ void calculate_FFT(void) {
 	second_vals[14] =(complex){.real = first_vals[14] +first_vals[15],.img = 0.0};
 	second_vals[15] =(complex){.real = first_vals[14] +first_vals[15],.img = 0.0};
 		second_vals[15]= complexMult(second_vals[15], twiddle_factors[4]);
-
-	//printf("second_vals_9: %d + %dI\n\r", (int)(second_vals[9].real), (int)(second_vals[9].img));
 
 	third_vals[0] = complexAdd(second_vals[0], second_vals[2]);
 	third_vals[1] = complexAdd(second_vals[1], second_vals[3]);
@@ -607,8 +593,6 @@ void calculate_FFT(void) {
 		third_vals[14] = complexMult(third_vals[14], twiddle_factors[4]);
 	third_vals[15] = complexAdd(second_vals[13], second_vals[15]);
 		third_vals[15] = complexMult(third_vals[15], twiddle_factors[6]);
-
-	//printf("third_vals_9: %d + %dI\n\r", (int)(third_vals[9].real), (int)(third_vals[9].img));
 
 	fourth_vals[0] = complexAdd(third_vals[0], third_vals[4]);
 	fourth_vals[1] = complexAdd(third_vals[1], third_vals[5]);
@@ -634,8 +618,6 @@ void calculate_FFT(void) {
 	fourth_vals[15] = complexAdd(third_vals[11], third_vals[15]);
 		fourth_vals[15] = complexMult(fourth_vals[15], twiddle_factors[7]);
 
-	//printf("fourth_vals_9: %d + %dI\n\r", (int)(fourth_vals[9].real), (int)(fourth_vals[9].img));
-
 	fifth_vals[0] = complexAdd(fourth_vals[0],fourth_vals[8]);
 	fifth_vals[1] = complexAdd(fourth_vals[1],fourth_vals[9]);
 	fifth_vals[2] = complexAdd(fourth_vals[2],fourth_vals[10]);
@@ -652,8 +634,6 @@ void calculate_FFT(void) {
 	fifth_vals[13] = complexAdd(fourth_vals[5],fourth_vals[13]);
 	fifth_vals[14] = complexAdd(fourth_vals[6],fourth_vals[14]);
 	fifth_vals[15] = complexAdd(fourth_vals[7],fourth_vals[15]);
-
-	//printf("fifth_vals_9: %d + %dI\n\r", (int)(fifth_vals[9].real), (int)(fifth_vals[9].img));
 
 	return_vals[0] = cabsf_0(fifth_vals[0]) + iir_inc*return_vals[0];
 	return_vals[1] = cabsf_0(fifth_vals[1]) + iir_inc*return_vals[1];
@@ -708,22 +688,7 @@ void LEDScreenTask(void const * argument)
   for(;;)
   {
 	osDelay(50);
-	/*printf("return_val_0: %d\n\r", (int)return_vals[0]);
-	printf("return_val_1: %d\n\r", (int)return_vals[1]);
-	printf("return_val_2: %d\n\r", (int)return_vals[2]);
-	printf("return_val_3: %d\n\r", (int)return_vals[3]);
-	printf("return_val_4: %d\n\r", (int)return_vals[4]);
-	printf("return_val_5: %d\n\r", (int)return_vals[5]);
-	printf("return_val_6: %d\n\r", (int)return_vals[6]);
-	printf("return_val_7: %d\n\r", (int)return_vals[7]);
-	printf("return_val_8: %d\n\r", (int)return_vals[8]);
-	printf("return_val_9: %d\n\r", (int)return_vals[9]);
-	printf("return_val_10: %d\n\r", (int)return_vals[10]);
-	printf("return_val_11: %d\n\r", (int)return_vals[11]);
-	printf("return_val_12: %d\n\r", (int)return_vals[12]);
-	printf("return_val_13: %d\n\r", (int)return_vals[13]);
-	printf("return_val_14: %d\n\r", (int)return_vals[14]);
-	printf("return_val_15: %d\n\n\n\r", (int)return_vals[15]);*/
+
 	clear_LED_screen();
 	osDelay(2);
 	avg = low_pass_filter((float32_t)avg);
