@@ -1,0 +1,125 @@
+<html lang="en">
+<head>
+<title>Nvidia PTX Options - Using the GNU Compiler Collection (GCC)</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="Using the GNU Compiler Collection (GCC)">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Submodel-Options.html#Submodel-Options" title="Submodel Options">
+<link rel="prev" href="Nios-II-Options.html#Nios-II-Options" title="Nios II Options">
+<link rel="next" href="OpenRISC-Options.html#OpenRISC-Options" title="OpenRISC Options">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="Nvidia-PTX-Options"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="OpenRISC-Options.html#OpenRISC-Options">OpenRISC Options</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="Nios-II-Options.html#Nios-II-Options">Nios II Options</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Submodel-Options.html#Submodel-Options">Submodel Options</a>
+<hr>
+</div>
+
+<h4 class="subsection">3.19.37 Nvidia PTX Options</h4>
+
+<p><a name="index-Nvidia-PTX-options-2869"></a><a name="index-nvptx-options-2870"></a>
+These options are defined for Nvidia PTX:
+
+     <dl>
+<dt><code>-m64</code><dd><a name="index-m64-2871"></a>Ignored, but preserved for backward compatibility.  Only 64-bit ABI is
+supported.
+
+     <br><dt><code>-march=</code><var>architecture-string</var><dd><a name="index-march-2872"></a>Generate code for the specified PTX ISA target architecture
+(e.g. `<samp><span class="samp">sm_35</span></samp>').  Valid architecture strings are `<samp><span class="samp">sm_30</span></samp>',
+`<samp><span class="samp">sm_35</span></samp>', `<samp><span class="samp">sm_53</span></samp>', `<samp><span class="samp">sm_70</span></samp>', `<samp><span class="samp">sm_75</span></samp>' and
+`<samp><span class="samp">sm_80</span></samp>'.  The default target architecture is sm_30.
+
+     <p>This option sets the value of the preprocessor macro
+<code>__PTX_SM__</code>; for instance, for `<samp><span class="samp">sm_35</span></samp>', it has the value
+`<samp><span class="samp">350</span></samp>'.
+
+     <br><dt><code>-misa=</code><var>architecture-string</var><dd><a name="index-misa-2873"></a>Alias of <samp><span class="option">-march=</span></samp>.
+
+     <br><dt><code>-march-map=</code><var>architecture-string</var><dd><a name="index-march-2874"></a>Select the closest available <samp><span class="option">-march=</span></samp> value that is not more
+capable.  For instance, for <samp><span class="option">-march-map=sm_50</span></samp> select
+<samp><span class="option">-march=sm_35</span></samp>, and for <samp><span class="option">-march-map=sm_53</span></samp> select
+<samp><span class="option">-march=sm_53</span></samp>.
+
+     <br><dt><code>-mptx=</code><var>version-string</var><dd><a name="index-mptx-2875"></a>Generate code for the specified PTX ISA version (e.g. `<samp><span class="samp">7.0</span></samp>'). 
+Valid version strings include `<samp><span class="samp">3.1</span></samp>', `<samp><span class="samp">6.0</span></samp>', `<samp><span class="samp">6.3</span></samp>', and
+`<samp><span class="samp">7.0</span></samp>'.  The default PTX ISA version is 6.0, unless a higher
+version is required for specified PTX ISA target architecture via
+option <samp><span class="option">-march=</span></samp>.
+
+     <p>This option sets the values of the preprocessor macros
+<code>__PTX_ISA_VERSION_MAJOR__</code> and <code>__PTX_ISA_VERSION_MINOR__</code>;
+for instance, for `<samp><span class="samp">3.1</span></samp>' the macros have the values `<samp><span class="samp">3</span></samp>' and
+`<samp><span class="samp">1</span></samp>', respectively.
+
+     <br><dt><code>-mmainkernel</code><dd><a name="index-mmainkernel-2876"></a>Link in code for a __main kernel.  This is for stand-alone instead of
+offloading execution.
+
+     <br><dt><code>-moptimize</code><dd><a name="index-moptimize-2877"></a>Apply partitioned execution optimizations.  This is the default when any
+level of optimization is selected.
+
+     <br><dt><code>-msoft-stack</code><dd><a name="index-msoft_002dstack-2878"></a>Generate code that does not use <code>.local</code> memory
+directly for stack storage. Instead, a per-warp stack pointer is
+maintained explicitly. This enables variable-length stack allocation (with
+variable-length arrays or <code>alloca</code>), and when global memory is used for
+underlying storage, makes it possible to access automatic variables from other
+threads, or with atomic instructions. This code generation variant is used
+for OpenMP offloading, but the option is exposed on its own for the purpose
+of testing the compiler; to generate code suitable for linking into programs
+using OpenMP offloading, use option <samp><span class="option">-mgomp</span></samp>.
+
+     <br><dt><code>-muniform-simt</code><dd><a name="index-muniform_002dsimt-2879"></a>Switch to code generation variant that allows to execute all threads in each
+warp, while maintaining memory state and side effects as if only one thread
+in each warp was active outside of OpenMP SIMD regions.  All atomic operations
+and calls to runtime (malloc, free, vprintf) are conditionally executed (iff
+current lane index equals the master lane index), and the register being
+assigned is copied via a shuffle instruction from the master lane.  Outside of
+SIMD regions lane 0 is the master; inside, each thread sees itself as the
+master.  Shared memory array <code>int __nvptx_uni[]</code> stores all-zeros or
+all-ones bitmasks for each warp, indicating current mode (0 outside of SIMD
+regions).  Each thread can bitwise-and the bitmask at position <code>tid.y</code>
+with current lane index to compute the master lane index.
+
+     <br><dt><code>-mgomp</code><dd><a name="index-mgomp-2880"></a>Generate code for use in OpenMP offloading: enables <samp><span class="option">-msoft-stack</span></samp> and
+<samp><span class="option">-muniform-simt</span></samp> options, and selects corresponding multilib variant.
+
+ </dl>
+
+ </body></html>
+

@@ -1,0 +1,129 @@
+<html lang="en">
+<head>
+<title>D Language and ABI - GNU Compiler Collection (GCC) Internals</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="GNU Compiler Collection (GCC) Internals">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Target-Macros.html#Target-Macros" title="Target Macros">
+<link rel="prev" href="C_002b_002b-ABI.html#C_002b_002b-ABI" title="C++ ABI">
+<link rel="next" href="Named-Address-Spaces.html#Named-Address-Spaces" title="Named Address Spaces">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="D-Language-and-ABI"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="Named-Address-Spaces.html#Named-Address-Spaces">Named Address Spaces</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="C_002b_002b-ABI.html#C_002b_002b-ABI">C++ ABI</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Target-Macros.html#Target-Macros">Target Macros</a>
+<hr>
+</div>
+
+<h3 class="section">18.29 D ABI parameters</h3>
+
+<p><a name="index-parameters_002c-d-abi-5155"></a>
+
+<div class="defun">
+&mdash; D Target Hook: void <b>TARGET_D_CPU_VERSIONS</b> (<var>void</var>)<var><a name="index-TARGET_005fD_005fCPU_005fVERSIONS-5156"></a></var><br>
+<blockquote><p>Declare all environmental version identifiers relating to the target CPU
+using the function <code>builtin_version</code>, which takes a string representing
+the name of the version.  Version identifiers predefined by this hook apply
+to all modules that are being compiled and imported. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: void <b>TARGET_D_OS_VERSIONS</b> (<var>void</var>)<var><a name="index-TARGET_005fD_005fOS_005fVERSIONS-5157"></a></var><br>
+<blockquote><p>Similarly to <code>TARGET_D_CPU_VERSIONS</code>, but is used for versions
+relating to the target operating system. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: void <b>TARGET_D_REGISTER_CPU_TARGET_INFO</b> (<var>void</var>)<var><a name="index-TARGET_005fD_005fREGISTER_005fCPU_005fTARGET_005fINFO-5158"></a></var><br>
+<blockquote><p>Register all target information keys relating to the target CPU using the
+function <code>d_add_target_info_handlers</code>, which takes a
+`<samp><span class="samp">struct d_target_info_spec</span></samp>' (defined in <samp><span class="file">d/d-target.h</span></samp>).  The keys
+added by this hook are made available at compile time by the
+<code>__traits(getTargetInfo)</code> extension, the result is an expression
+describing the requested target information. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: void <b>TARGET_D_REGISTER_OS_TARGET_INFO</b> (<var>void</var>)<var><a name="index-TARGET_005fD_005fREGISTER_005fOS_005fTARGET_005fINFO-5159"></a></var><br>
+<blockquote><p>Same as <code>TARGET_D_CPU_TARGET_INFO</code>, but is used for keys relating to
+the target operating system. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: const char * <b>TARGET_D_MINFO_SECTION</b><var><a name="index-TARGET_005fD_005fMINFO_005fSECTION-5160"></a></var><br>
+<blockquote><p>Contains the name of the section in which module info references should be
+placed.  This section is expected to be bracketed by two symbols to indicate
+the start and end address of the section, so that the runtime library can
+collect all modules for each loaded shared library and executable.  The
+default value of <code>NULL</code> disables the use of sections altogether. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: const char * <b>TARGET_D_MINFO_START_NAME</b><var><a name="index-TARGET_005fD_005fMINFO_005fSTART_005fNAME-5161"></a></var><br>
+<blockquote><p>If <code>TARGET_D_MINFO_SECTION</code> is defined, then this must also be defined
+as the name of the symbol indicating the start address of the module info
+section
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: const char * <b>TARGET_D_MINFO_END_NAME</b><var><a name="index-TARGET_005fD_005fMINFO_005fEND_005fNAME-5162"></a></var><br>
+<blockquote><p>If <code>TARGET_D_MINFO_SECTION</code> is defined, then this must also be defined
+as the name of the symbol indicating the end address of the module info
+section
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: bool <b>TARGET_D_HAS_STDCALL_CONVENTION</b> (<var>unsigned int *link_system, unsigned int *link_windows</var>)<var><a name="index-TARGET_005fD_005fHAS_005fSTDCALL_005fCONVENTION-5163"></a></var><br>
+<blockquote><p>Returns <code>true</code> if the target supports the stdcall calling convention. 
+The hook should also set <var>link_system</var> to <code>1</code> if the <code>stdcall</code>
+attribute should be applied to functions with <code>extern(System)</code> linkage,
+and <var>link_windows</var> to <code>1</code> to apply <code>stdcall</code> to functions with
+<code>extern(Windows)</code> linkage. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; D Target Hook: bool <b>TARGET_D_TEMPLATES_ALWAYS_COMDAT</b><var><a name="index-TARGET_005fD_005fTEMPLATES_005fALWAYS_005fCOMDAT-5164"></a></var><br>
+<blockquote><p>This flag is true if instantiated functions and variables are always COMDAT
+if they have external linkage.  If this flag is false, then instantiated
+decls will be emitted as weak symbols.  The default is <code>false</code>. 
+</p></blockquote></div>
+
+ </body></html>
+

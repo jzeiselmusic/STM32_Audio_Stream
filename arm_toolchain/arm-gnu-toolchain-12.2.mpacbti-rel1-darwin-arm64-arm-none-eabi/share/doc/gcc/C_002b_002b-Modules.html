@@ -1,0 +1,185 @@
+<html lang="en">
+<head>
+<title>C++ Modules - Using the GNU Compiler Collection (GCC)</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="Using the GNU Compiler Collection (GCC)">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Invoking-GCC.html#Invoking-GCC" title="Invoking GCC">
+<link rel="prev" href="Precompiled-Headers.html#Precompiled-Headers" title="Precompiled Headers">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="C++-Modules"></a>
+<a name="C_002b_002b-Modules"></a>
+Previous:&nbsp;<a rel="previous" accesskey="p" href="Precompiled-Headers.html#Precompiled-Headers">Precompiled Headers</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Invoking-GCC.html#Invoking-GCC">Invoking GCC</a>
+<hr>
+</div>
+
+<h3 class="section">3.23 C++ Modules</h3>
+
+<p><a name="index-speed-of-compilation-3681"></a>
+Modules are a C++20 language feature.  As the name suggests, they
+provides a modular compilation system, intending to provide both
+faster builds and better library isolation.  The &ldquo;Merging Modules&rdquo;
+paper <a href="https://wg21.link/p1103">https://wg21.link/p1103</a>, provides the easiest to read set
+of changes to the standard, although it does not capture later
+changes.
+
+ <p><em>G++'s modules support is not complete.</em>  Other than bugs, the
+known missing pieces are:
+
+     <dl>
+<dt><em>Private Module Fragment</em><dd>The Private Module Fragment is recognized, but an error is emitted.
+
+     <br><dt><em>Partition definition visibility rules</em><dd>Entities may be defined in implementation partitions, and those
+definitions are not available outside of the module.  This is not
+implemented, and the definitions are available to extra-module use.
+
+     <br><dt><em>Textual merging of reachable GM entities</em><dd>Entities may be multiply defined across different header-units. 
+These must be de-duplicated, and this is implemented across imports,
+or when an import redefines a textually-defined entity.  However the
+reverse is not implemented&mdash;textually redefining an entity that has
+been defined in an imported header-unit.  A redefinition error is
+emitted.
+
+     <br><dt><em>Translation-Unit local referencing rules</em><dd>Papers p1815 (<a href="https://wg21.link/p1815">https://wg21.link/p1815</a>) and p2003
+(<a href="https://wg21.link/p2003">https://wg21.link/p2003</a>) add limitations on which entities an
+exported region may reference (for instance, the entities an exported
+template definition may reference).  These are not fully implemented.
+
+     <br><dt><em>Language-linkage module attachment</em><dd>Declarations with explicit language linkage (<code>extern "C"</code> or
+<code>extern "C++"</code>) are attached to the global module, even when in
+the purview of a named module.  This is not implemented.  Such
+declarations will be attached to the module, if any, in which they are
+declared.
+
+     <br><dt><em>Standard Library Header Units</em><dd>The Standard Library is not provided as importable header units.  If
+you want to import such units, you must explicitly build them first. 
+If you do not do this with care, you may have multiple declarations,
+which the module machinery must merge&mdash;compiler resource usage can be
+affected by how you partition header files into header units.
+
+ </dl>
+
+ <p>Modular compilation is <em>not</em> enabled with just the
+<samp><span class="option">-std=c++20</span></samp> option.  You must explicitly enable it with the
+<samp><span class="option">-fmodules-ts</span></samp> option.  It is independent of the language
+version selected, although in pre-C++20 versions, it is of course an
+extension.
+
+ <p>No new source file suffixes are required or supported.  If you wish to
+use a non-standard suffix (see <a href="Overall-Options.html#Overall-Options">Overall Options</a>), you also need
+to provide a <samp><span class="option">-x c++</span></samp> option too.<a rel="footnote" href="#fn-1" name="fnd-1"><sup>1</sup></a>
+
+ <p>Compiling a module interface unit produces an additional output (to
+the assembly or object file), called a Compiled Module Interface
+(CMI).  This encodes the exported declarations of the module. 
+Importing a module reads in the CMI.  The import graph is a Directed
+Acyclic Graph (DAG).  You must build imports before the importer.
+
+ <p>Header files may themselves be compiled to header units, which are a
+transitional ability aiming at faster compilation.  The
+<samp><span class="option">-fmodule-header</span></samp> option is used to enable this, and implies
+the <samp><span class="option">-fmodules-ts</span></samp> option.  These CMIs are named by the fully
+resolved underlying header file, and thus may be a complete pathname
+containing subdirectories.  If the header file is found at an absolute
+pathname, the CMI location is still relative to a CMI root directory.
+
+ <p>As header files often have no suffix, you commonly have to specify a
+<samp><span class="option">-x</span></samp> option to tell the compiler the source is a header file. 
+You may use <samp><span class="option">-x c++-header</span></samp>, <samp><span class="option">-x c++-user-header</span></samp> or
+<samp><span class="option">-x c++-system-header</span></samp>.  When used in conjunction with
+<samp><span class="option">-fmodules-ts</span></samp>, these all imply an appropriate
+<samp><span class="option">-fmodule-header</span></samp> option.  The latter two variants use the
+user or system include path to search for the file specified.  This
+allows you to, for instance, compile standard library header files as
+header units, without needing to know exactly where they are
+installed.  Specifying the language as one of these variants also
+inhibits output of the object file, as header files have no associated
+object file.
+
+ <p>The <samp><span class="option">-fmodule-only</span></samp> option disables generation of the
+associated object file for compiling a module interface.  Only the CMI
+is generated.  This option is implied when using the
+<samp><span class="option">-fmodule-header</span></samp> option.
+
+ <p>The <samp><span class="option">-flang-info-include-translate</span></samp> and
+<samp><span class="option">-flang-info-include-translate-not</span></samp> options notes whether
+include translation occurs or not.  With no argument, the first will
+note all include translation.  The second will note all
+non-translations of include files not known to intentionally be
+textual.  With an argument, queries about include translation of a
+header files with that particular trailing pathname are noted.  You
+may repeat this form to cover several different header files.  This
+option may be helpful in determining whether include translation is
+happening&mdash;if it is working correctly, it behaves as if it isn't
+there at all.
+
+ <p>The <samp><span class="option">-flang-info-module-cmi</span></samp> option can be used to determine
+where the compiler is reading a CMI from.  Without the option, the
+compiler is silent when such a read is successful.  This option has an
+optional argument, which will restrict the notification to just the
+set of named modules or header units specified.
+
+ <p>The <samp><span class="option">-Winvalid-imported-macros</span></samp> option causes all imported macros
+to be resolved at the end of compilation.  Without this, imported
+macros are only resolved when expanded or (re)defined.  This option
+detects conflicting import definitions for all macros.
+
+ <p>For details of the <samp><span class="option">-fmodule-mapper</span></samp> family of options,
+see <a href="C_002b_002b-Module-Mapper.html#C_002b_002b-Module-Mapper">C++ Module Mapper</a>.
+
+<ul class="menu">
+<li><a accesskey="1" href="C_002b_002b-Module-Mapper.html#C_002b_002b-Module-Mapper">C++ Module Mapper</a>:        Module Mapper
+<li><a accesskey="2" href="C_002b_002b-Module-Preprocessing.html#C_002b_002b-Module-Preprocessing">C++ Module Preprocessing</a>:   Module Preprocessing
+<li><a accesskey="3" href="C_002b_002b-Compiled-Module-Interface.html#C_002b_002b-Compiled-Module-Interface">C++ Compiled Module Interface</a>:  Compiled Module Interface
+</ul>
+
+ <div class="footnote">
+<hr>
+<h4>Footnotes</h4><p class="footnote"><small>[<a name="fn-1" href="#fnd-1">1</a>]</small> Some users like to
+distinguish module interface files with a new suffix, such as naming
+the source <code>module.cppm</code>, which involves
+teaching all tools about the new suffix.  A different scheme, such as
+naming <code>module-m.cpp</code> would be less invasive.</p>
+
+ <p><hr></div>
+
+ </body></html>
+

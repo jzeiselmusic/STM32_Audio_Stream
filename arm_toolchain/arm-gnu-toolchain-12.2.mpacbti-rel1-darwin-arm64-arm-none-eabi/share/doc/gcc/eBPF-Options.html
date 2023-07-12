@@ -1,0 +1,119 @@
+<html lang="en">
+<head>
+<title>eBPF Options - Using the GNU Compiler Collection (GCC)</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="Using the GNU Compiler Collection (GCC)">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Submodel-Options.html#Submodel-Options" title="Submodel Options">
+<link rel="prev" href="DEC-Alpha-Options.html#DEC-Alpha-Options" title="DEC Alpha Options">
+<link rel="next" href="FR30-Options.html#FR30-Options" title="FR30 Options">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="eBPF-Options"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="FR30-Options.html#FR30-Options">FR30 Options</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="DEC-Alpha-Options.html#DEC-Alpha-Options">DEC Alpha Options</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Submodel-Options.html#Submodel-Options">Submodel Options</a>
+<hr>
+</div>
+
+<h4 class="subsection">3.19.14 eBPF Options</h4>
+
+<p><a name="index-eBPF-Options-2260"></a>
+     <dl>
+<dt><code>-mframe-limit=</code><var>bytes</var><dd>This specifies the hard limit for frame sizes, in bytes.  Currently,
+the value that can be specified should be less than or equal to
+`<samp><span class="samp">32767</span></samp>'.  Defaults to whatever limit is imposed by the version of
+the Linux kernel targeted.
+
+     <br><dt><code>-mkernel=</code><var>version</var><dd><a name="index-mkernel-2261"></a>This specifies the minimum version of the kernel that will run the
+compiled program.  GCC uses this version to determine which
+instructions to use, what kernel helpers to allow, etc.  Currently,
+<var>version</var> can be one of `<samp><span class="samp">4.0</span></samp>', `<samp><span class="samp">4.1</span></samp>', `<samp><span class="samp">4.2</span></samp>',
+`<samp><span class="samp">4.3</span></samp>', `<samp><span class="samp">4.4</span></samp>', `<samp><span class="samp">4.5</span></samp>', `<samp><span class="samp">4.6</span></samp>', `<samp><span class="samp">4.7</span></samp>',
+`<samp><span class="samp">4.8</span></samp>', `<samp><span class="samp">4.9</span></samp>', `<samp><span class="samp">4.10</span></samp>', `<samp><span class="samp">4.11</span></samp>', `<samp><span class="samp">4.12</span></samp>',
+`<samp><span class="samp">4.13</span></samp>', `<samp><span class="samp">4.14</span></samp>', `<samp><span class="samp">4.15</span></samp>', `<samp><span class="samp">4.16</span></samp>', `<samp><span class="samp">4.17</span></samp>',
+`<samp><span class="samp">4.18</span></samp>', `<samp><span class="samp">4.19</span></samp>', `<samp><span class="samp">4.20</span></samp>', `<samp><span class="samp">5.0</span></samp>', `<samp><span class="samp">5.1</span></samp>',
+`<samp><span class="samp">5.2</span></samp>', `<samp><span class="samp">latest</span></samp>' and `<samp><span class="samp">native</span></samp>'.
+
+     <br><dt><code>-mbig-endian</code><dd><a name="index-mbig_002dendian-2262"></a>Generate code for a big-endian target.
+
+     <br><dt><code>-mlittle-endian</code><dd><a name="index-mlittle_002dendian-2263"></a>Generate code for a little-endian target.  This is the default.
+
+     <br><dt><code>-mjmpext</code><dd><a name="index-mjmpext-2264"></a>Enable generation of extra conditional-branch instructions. 
+Enabled for CPU v2 and above.
+
+     <br><dt><code>-mjmp32</code><dd><a name="index-mjmp32-2265"></a>Enable 32-bit jump instructions. Enabled for CPU v3 and above.
+
+     <br><dt><code>-malu32</code><dd><a name="index-malu32-2266"></a>Enable 32-bit ALU instructions. Enabled for CPU v3 and above.
+
+     <br><dt><code>-mcpu=</code><var>version</var><dd><a name="index-mcpu-2267"></a>This specifies which version of the eBPF ISA to target. Newer versions
+may not be supported by all kernels. The default is `<samp><span class="samp">v3</span></samp>'.
+
+     <p>Supported values for <var>version</var> are:
+
+          <dl>
+<dt>`<samp><span class="samp">v1</span></samp>'<dd>The first stable eBPF ISA with no special features or extensions.
+
+          <br><dt>`<samp><span class="samp">v2</span></samp>'<dd>Supports the jump extensions, as in <samp><span class="option">-mjmpext</span></samp>.
+
+          <br><dt>`<samp><span class="samp">v3</span></samp>'<dd>All features of v2, plus:
+               <ul>
+<li>32-bit jump operations, as in <samp><span class="option">-mjmp32</span></samp>
+<li>32-bit ALU operations, as in <samp><span class="option">-malu32</span></samp>
+</ul>
+
+     </dl>
+
+     <br><dt><code>-mco-re</code><dd><a name="index-mco_002dre-2268"></a>Enable BPF Compile Once - Run Everywhere (CO-RE) support. Requires and
+is implied by <samp><span class="option">-gbtf</span></samp>.
+
+     <br><dt><code>-mno-co-re</code><dd><a name="index-mno_002dco_002dre-2269"></a>Disable BPF Compile Once - Run Everywhere (CO-RE) support. BPF CO-RE
+support is enabled by default when generating BTF debug information for
+the BPF target.
+
+     <br><dt><code>-mxbpf</code><dd>Generate code for an expanded version of BPF, which relaxes some of
+the restrictions imposed by the BPF architecture:
+          <ul>
+<li>Save and restore callee-saved registers at function entry and
+exit, respectively. 
+</ul>
+     </dl>
+
+ </body></html>
+

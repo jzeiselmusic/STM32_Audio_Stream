@@ -1,0 +1,192 @@
+<html lang="en">
+<head>
+<title>GDB/MI Commands In Python - Debugging with GDB</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="Debugging with GDB">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Python-API.html#Python-API" title="Python API">
+<link rel="prev" href="CLI-Commands-In-Python.html#CLI-Commands-In-Python" title="CLI Commands In Python">
+<link rel="next" href="Parameters-In-Python.html#Parameters-In-Python" title="Parameters In Python">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Free Software'' and ``Free Software Needs
+Free Documentation'', with the Front-Cover Texts being ``A GNU Manual,''
+and with the Back-Cover Texts as in (a) below.
+
+(a) The FSF's Back-Cover Text is: ``You are free to copy and modify
+this GNU Manual.  Buying copies from GNU Press supports the FSF in
+developing GNU and promoting software freedom.''
+-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="GDB%2fMI-Commands-In-Python"></a>
+<a name="GDB_002fMI-Commands-In-Python"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="Parameters-In-Python.html#Parameters-In-Python">Parameters In Python</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="CLI-Commands-In-Python.html#CLI-Commands-In-Python">CLI Commands In Python</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Python-API.html#Python-API">Python API</a>
+<hr>
+</div>
+
+<h5 class="subsubsection">23.3.2.21 <span class="sc">GDB/MI</span> Commands In Python</h5>
+
+<p><a name="index-MI-commands-in-python-2333"></a><a name="index-commands-in-python_002c-GDB_002fMI-2334"></a><a name="index-python-commands_002c-GDB_002fMI-2335"></a>It is possible to add <span class="sc">GDB/MI</span> (see <a href="GDB_002fMI.html#GDB_002fMI">GDB/MI</a>) commands
+implemented in Python.  A <span class="sc">GDB/MI</span> command is implemented using an
+instance of the <code>gdb.MICommand</code> class, most commonly using a
+subclass.
+
+<div class="defun">
+&mdash; Function: <b>MICommand.__init__</b> (<var>name</var>)<var><a name="index-MICommand_002e_005f_005finit_005f_005f-2336"></a></var><br>
+<blockquote><p>The object initializer for <code>MICommand</code> registers the new command
+with <span class="sc">gdb</span>.  This initializer is normally invoked from the
+subclass' own <code>__init__</code> method.
+
+        <p><var>name</var> is the name of the command.  It must be a valid name of a
+<span class="sc">GDB/MI</span> command, and in particular must start with a hyphen
+(<code>-</code>).  Reusing the name of a built-in <span class="sc">GDB/MI</span> is not
+allowed, and a <code>RuntimeError</code> will be raised.  Using the name
+of an <span class="sc">GDB/MI</span> command previously defined in Python is allowed, the
+previous command will be replaced with the new command. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Function: <b>MICommand.invoke</b> (<var>arguments</var>)<var><a name="index-MICommand_002einvoke-2337"></a></var><br>
+<blockquote><p>This method is called by <span class="sc">gdb</span> when the new MI command is
+invoked.
+
+        <p><var>arguments</var> is a list of strings.  Note, that <code>--thread</code>
+and <code>--frame</code> arguments are handled by <span class="sc">gdb</span> itself therefore
+they do not show up in <code>arguments</code>.
+
+        <p>If this method raises an exception, then it is turned into a
+<span class="sc">GDB/MI</span> <code>^error</code> response.  Only <code>gdb.GdbError</code>
+exceptions (or its sub-classes) should be used for reporting errors to
+users, any other exception type is treated as a failure of the
+<code>invoke</code> method, and the exception will be printed to the error
+stream according to the <kbd>set python print-stack</kbd> setting
+(see <a href="set_005fpython_005fprint_005fstack.html#set_005fpython_005fprint_005fstack"><kbd>set python print-stack</kbd></a>).
+
+        <p>If this method returns <code>None</code>, then the <span class="sc">GDB/MI</span> command will
+return a <code>^done</code> response with no additional values.
+
+        <p>Otherwise, the return value must be a dictionary, which is converted
+to a <span class="sc">GDB/MI</span> <var>result-record</var> (see <a href="GDB_002fMI-Output-Syntax.html#GDB_002fMI-Output-Syntax">GDB/MI Output Syntax</a>). 
+The keys of this dictionary must be strings, and are used as
+<var>variable</var> names in the <var>result-record</var>, these strings must
+comply with the naming rules detailed below.  The values of this
+dictionary are recursively handled as follows:
+
+          <ul>
+<li>If the value is Python sequence or iterator, it is converted to
+<span class="sc">GDB/MI</span> <var>list</var> with elements converted recursively.
+
+          <li>If the value is Python dictionary, it is converted to
+<span class="sc">GDB/MI</span> <var>tuple</var>.  Keys in that dictionary must be strings,
+which comply with the <var>variable</var> naming rules detailed below. 
+Values are converted recursively.
+
+          <li>Otherwise, value is first converted to a Python string using
+<code>str ()</code> and then converted to <span class="sc">GDB/MI</span> <var>const</var>. 
+</ul>
+
+        <p>The strings used for <var>variable</var> names in the <span class="sc">GDB/MI</span> output
+must follow the following rules; the string must be at least one
+character long, the first character must be in the set
+<code>[a-zA-Z]</code>, while every subsequent character must be in the set
+<code>[-_a-zA-Z0-9]</code>. 
+</p></blockquote></div>
+
+   <p>An instance of <code>MICommand</code> has the following attributes:
+
+<div class="defun">
+&mdash; Variable: <b>MICommand.name</b><var><a name="index-MICommand_002ename-2338"></a></var><br>
+<blockquote><p>A string, the name of this <span class="sc">GDB/MI</span> command, as was passed to the
+<code>__init__</code> method.  This attribute is read-only. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Variable: <b>MICommand.installed</b><var><a name="index-MICommand_002einstalled-2339"></a></var><br>
+<blockquote><p>A boolean value indicating if this command is installed ready for a
+user to call from the command line.  Commands are automatically
+installed when they are instantiated, after which this attribute will
+be <code>True</code>.
+
+        <p>If later, a new command is created with the same name, then the
+original command will become uninstalled, and this attribute will be
+<code>False</code>.
+
+        <p>This attribute is read-write, setting this attribute to <code>False</code>
+will uninstall the command, removing it from the set of available
+commands.  Setting this attribute to <code>True</code> will install the
+command for use.  If there is already a Python command with this name
+installed, the currently installed command will be uninstalled, and
+this command installed in its place. 
+</p></blockquote></div>
+
+   <p>The following code snippet shows how a two trivial MI command can be
+implemented in Python:
+
+<pre class="smallexample">     class MIEcho(gdb.MICommand):
+         """Echo arguments passed to the command."""
+     
+         def __init__(self, name, mode):
+             self._mode = mode
+             super(MIEcho, self).__init__(name)
+     
+         def invoke(self, argv):
+             if self._mode == 'dict':
+                 return { 'dict': { 'argv' : argv } }
+             elif self._mode == 'list':
+                 return { 'list': argv }
+             else:
+                 return { 'string': ", ".join(argv) }
+     
+     
+     MIEcho("-echo-dict", "dict")
+     MIEcho("-echo-list", "list")
+     MIEcho("-echo-string", "string")
+</pre>
+   <p>The last three lines instantiate the class three times, creating three
+new <span class="sc">GDB/MI</span> commands <code>-echo-dict</code>, <code>-echo-list</code>, and
+<code>-echo-string</code>.  Each time a subclass of <code>gdb.MICommand</code> is
+instantiated, the new command is automatically registered with
+<span class="sc">gdb</span>.
+
+   <p>Depending on how the Python code is read into <span class="sc">gdb</span>, you may
+need to import the <code>gdb</code> module explicitly.
+
+   <p>The following example shows a <span class="sc">gdb</span> session in which the above
+commands have been added:
+
+<pre class="smallexample">     (gdb)
+     -echo-dict abc def ghi
+     ^done,dict={argv=["abc","def","ghi"]}
+     (gdb)
+     -echo-list abc def ghi
+     ^done,list=["abc","def","ghi"]
+     (gdb)
+     -echo-string abc def ghi
+     ^done,string="abc, def, ghi"
+     (gdb)
+</pre>
+   </body></html>
+

@@ -1,0 +1,201 @@
+<html lang="en">
+<head>
+<title>RTL SSA Access Lists - GNU Compiler Collection (GCC) Internals</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="GNU Compiler Collection (GCC) Internals">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="RTL-SSA.html#RTL-SSA" title="RTL SSA">
+<link rel="prev" href="RTL-SSA-Phi-Nodes.html#RTL-SSA-Phi-Nodes" title="RTL SSA Phi Nodes">
+<link rel="next" href="Changing-RTL-Instructions.html#Changing-RTL-Instructions" title="Changing RTL Instructions">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="RTL-SSA-Access-Lists"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="Changing-RTL-Instructions.html#Changing-RTL-Instructions">Changing RTL Instructions</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="RTL-SSA-Phi-Nodes.html#RTL-SSA-Phi-Nodes">RTL SSA Phi Nodes</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="RTL-SSA.html#RTL-SSA">RTL SSA</a>
+<hr>
+</div>
+
+<h4 class="subsection">14.21.7 RTL SSA Access Lists</h4>
+
+<p>All the definitions of a resource are chained together in reverse postorder. 
+In general, this list can contain an arbitrary mix of both sets
+(<code>rtl_ssa::set_info</code>) and clobbers (<code>rtl_ssa::clobber_info</code>). 
+However, it is often useful to skip over all intervening clobbers
+of a resource in order to find the next set.  The list is constructed
+in such a way that this can be done in amortized constant time.
+
+ <p>All uses (<code>rtl_ssa::use_info</code>) of a given set are also chained
+together into a list.  This list of uses is divided into three parts:
+
+     <ol type=1 start=1>
+<li>uses by &ldquo;real&rdquo; nondebug instructions (see <a href="real-RTL-SSA-insns.html#real-RTL-SSA-insns">real RTL SSA insns</a>)
+
+     <li>uses by real debug instructions
+
+     <li>uses by phi nodes (see <a href="RTL-SSA-Phi-Nodes.html#RTL-SSA-Phi-Nodes">RTL SSA Phi Nodes</a>)
+      </ol>
+
+ <p>The first and second parts individually follow reverse postorder. 
+The third part has no particular order.
+
+ <p><a name="index-degenerate-phi-node_002c-RTL-SSA-3211"></a>The last use by a real nondebug instruction always comes earlier in
+the reverse postorder than the next definition of the resource (if any). 
+This means that the accesses follow a linear sequence of the form:
+
+     <ul>
+<li>first definition of resource R
+
+          <ul>
+<li>first use by a real nondebug instruction of the first definition of resource R
+
+          <li><small class="dots">...</small>
+
+          <li>last use by a real nondebug instruction of the first definition of resource R
+</ul>
+
+     <li>second definition of resource R
+
+          <ul>
+<li>first use by a real nondebug instruction of the second definition of resource R
+
+          <li><small class="dots">...</small>
+
+          <li>last use by a real nondebug instruction of the second definition of resource R
+</ul>
+
+     <li><small class="dots">...</small>
+
+     <li>last definition of resource R
+
+          <ul>
+<li>first use by a real nondebug instruction of the last definition of resource R
+
+          <li><small class="dots">...</small>
+
+          <li>last use by a real nondebug instruction of the last definition of resource R
+</ul>
+     </ul>
+
+ <p>(Note that clobbers never have uses; only sets do.)
+
+ <p>This linear view is easy to achieve when there is only a single definition
+of a resource, which is commonly true for pseudo registers.  However,
+things are more complex  if code has a structure like the following:
+
+<pre class="smallexample">     // ebb2, bb2
+     R = <var>va</var>;        // A
+     if (...)
+       {
+         // ebb2, bb3
+         use1 (R);  // B
+         ...
+         R = <var>vc</var>;    // C
+       }
+     else
+       {
+         // ebb4, bb4
+         use2 (R);  // D
+       }
+</pre>
+ <p>The list of accesses would begin as follows:
+
+     <ul>
+<li>definition of R by A
+
+          <ul>
+<li>use of A's definition of R by B
+</ul>
+
+     <li>definition of R by C
+</ul>
+
+ <p>The next access to R is in D, but the value of R that D uses comes from
+A rather than C.
+
+ <p>This is resolved by adding a phi node for <code>ebb4</code>.  All inputs to this
+phi node have the same value, which in the example above is A's definition
+of R.  In other circumstances, it would not be necessary to create a phi
+node when all inputs are equal, so these phi nodes are referred to as
+&ldquo;degenerate&rdquo; phi nodes.
+
+ <p>The full list of accesses to R is therefore:
+
+     <ul>
+<li>definition of R by A
+
+          <ul>
+<li>use of A's definition of R by B
+</ul>
+
+     <li>definition of R by C
+
+     <li>definition of R by ebb4's phi instruction, with the input coming from A
+
+          <ul>
+<li>use of the ebb4's R phi definition of R by B
+</ul>
+     </ul>
+
+ <p>Note that A's definition is also used by ebb4's phi node, but this
+use belongs to the third part of the use list described above and
+so does not form part of the linear sequence.
+
+ <p>It is possible to &ldquo;look through&rdquo; any degenerate phi to the ultimate
+definition using the function <code>look_through_degenerate_phi</code>. 
+Note that the input to a degenerate phi is never itself provided
+by a degenerate phi.
+
+ <p>At present, the SSA form takes this principle one step further
+and guarantees that, for any given resource <var>res</var>, one of the
+following is true:
+
+     <ul>
+<li>The resource has a single definition <var>def</var>, which is not a phi node. 
+Excluding uses of undefined registers, all uses of <var>res</var> by real
+nondebug instructions use the value provided by <var>def</var>.
+
+     <li>Excluding uses of undefined registers, all uses of <var>res</var> use
+values provided by definitions that occur earlier in the same
+extended basic block.  These definitions might come from phi nodes
+or from real instructions. 
+</ul>
+
+ </body></html>
+

@@ -61,6 +61,9 @@ set(ARM_TOOLCHAIN_INCLUDES ${ARM_TOOLCHAIN_PATH}/arm-none-eabi/include ${ARM_TOO
 set(EXECUTABLE_TARGET ${PROJECT_NAME}${APP_EXECUTABLE_EXTENSION})
 
 add_executable(${EXECUTABLE_TARGET}
+    ${DSP_LIB_PATH}/Linear_Filtering/lpf.c
+    ${DSP_LIB_PATH}/Src/complex_numbers.c
+    ${DSP_LIB_PATH}/Fourier_Transform/fourier.c
     ${STM_HAL_LIB_PATH}/Src/stm32f4xx_hal_cortex.c
     ${STM_HAL_LIB_PATH}/Src/stm32f4xx_hal_dma_ex.c
     ${STM_HAL_LIB_PATH}/Src/stm32f4xx_hal_dma.c
@@ -119,6 +122,8 @@ target_include_directories(${EXECUTABLE_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/Fourier_Transform
+    ${CMAKE_CURRENT_SOURCE_DIR}/DSP/Linear_Filtering
 )
 
 # linker script

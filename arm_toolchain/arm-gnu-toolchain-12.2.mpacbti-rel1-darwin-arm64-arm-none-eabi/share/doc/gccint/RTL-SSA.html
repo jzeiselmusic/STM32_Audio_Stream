@@ -1,0 +1,82 @@
+<html lang="en">
+<head>
+<title>RTL SSA - GNU Compiler Collection (GCC) Internals</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="GNU Compiler Collection (GCC) Internals">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="RTL.html#RTL" title="RTL">
+<link rel="prev" href="Calls.html#Calls" title="Calls">
+<link rel="next" href="Sharing.html#Sharing" title="Sharing">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="RTL-SSA"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="Sharing.html#Sharing">Sharing</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="Calls.html#Calls">Calls</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="RTL.html#RTL">RTL</a>
+<hr>
+</div>
+
+<h3 class="section">14.21 On-the-Side SSA Form for RTL</h3>
+
+<p><a name="index-SSA_002c-RTL-form-3191"></a><a name="index-RTL-SSA-3192"></a>
+The patterns of an individual RTL instruction describe which registers
+are inputs to that instruction and which registers are outputs from
+that instruction.  However, it is often useful to know where the
+definition of a register input comes from and where the result of
+a register output is used.  One way of obtaining this information
+is to use the RTL SSA form, which provides a Static Single Assignment
+representation of the RTL instructions.
+
+ <p>The RTL SSA code is located in the <samp><span class="file">rtl-ssa</span></samp> subdirectory of the GCC
+source tree.  This section only gives a brief overview of it; please
+see the comments in the source code for more details.
+
+<ul class="menu">
+<li><a accesskey="1" href="Using-RTL-SSA.html#Using-RTL-SSA">Using RTL SSA</a>:              What a pass needs to do to use the RTL SSA form
+<li><a accesskey="2" href="RTL-SSA-Instructions.html#RTL-SSA-Instructions">RTL SSA Instructions</a>:       How instructions are represented and organized
+<li><a accesskey="3" href="RTL-SSA-Basic-Blocks.html#RTL-SSA-Basic-Blocks">RTL SSA Basic Blocks</a>:       How instructions are grouped into blocks
+<li><a accesskey="4" href="RTL-SSA-Resources.html#RTL-SSA-Resources">RTL SSA Resources</a>:          How registers and memory are represented
+<li><a accesskey="5" href="RTL-SSA-Accesses.html#RTL-SSA-Accesses">RTL SSA Accesses</a>:           How register and memory accesses are represented
+<li><a accesskey="6" href="RTL-SSA-Phi-Nodes.html#RTL-SSA-Phi-Nodes">RTL SSA Phi Nodes</a>:          How multiple sources are combined into one
+<li><a accesskey="7" href="RTL-SSA-Access-Lists.html#RTL-SSA-Access-Lists">RTL SSA Access Lists</a>:       How accesses are chained together
+<li><a accesskey="8" href="Changing-RTL-Instructions.html#Changing-RTL-Instructions">Changing RTL Instructions</a>:  How to use the RTL SSA framework to change insns
+</ul>
+
+ </body></html>
+

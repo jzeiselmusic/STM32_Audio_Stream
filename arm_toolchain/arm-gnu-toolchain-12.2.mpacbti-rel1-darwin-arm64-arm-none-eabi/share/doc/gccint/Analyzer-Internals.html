@@ -1,0 +1,442 @@
+<html lang="en">
+<head>
+<title>Analyzer Internals - GNU Compiler Collection (GCC) Internals</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="GNU Compiler Collection (GCC) Internals">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Static-Analyzer.html#Static-Analyzer" title="Static Analyzer">
+<link rel="next" href="Debugging-the-Analyzer.html#Debugging-the-Analyzer" title="Debugging the Analyzer">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="Analyzer-Internals"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="Debugging-the-Analyzer.html#Debugging-the-Analyzer">Debugging the Analyzer</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Static-Analyzer.html#Static-Analyzer">Static Analyzer</a>
+<hr>
+</div>
+
+<h3 class="section">27.1 Analyzer Internals</h3>
+
+<p><a name="index-analyzer_002c-internals-5418"></a><a name="index-static-analyzer_002c-internals-5419"></a>
+
+<h4 class="subsection">27.1.1 Overview</h4>
+
+<p>The analyzer implementation works on the gimple-SSA representation. 
+(I chose this in the hopes of making it easy to work with LTO to
+do whole-program analysis).
+
+ <p>The implementation is read-only: it doesn't attempt to change anything,
+just emit warnings.
+
+ <p>The gimple representation can be seen using <samp><span class="option">-fdump-ipa-analyzer</span></samp>. 
+<blockquote>
+<b>Tip:</b> If the analyzer ICEs before this is written out, one workaround is to use
+<samp><span class="option">--param=analyzer-bb-explosion-factor=0</span></samp> to force the analyzer
+to bail out after analyzing the first basic block. 
+</blockquote>
+
+ <p>First, we build a <code>supergraph</code> which combines the callgraph and all
+of the CFGs into a single directed graph, with both interprocedural and
+intraprocedural edges.  The nodes and edges in the supergraph are called
+&ldquo;supernodes&rdquo; and &ldquo;superedges&rdquo;, and often referred to in code as
+<code>snodes</code> and <code>sedges</code>.  Basic blocks in the CFGs are split at
+interprocedural calls, so there can be more than one supernode per
+basic block.  Most statements will be in just one supernode, but a call
+statement can appear in two supernodes: at the end of one for the call,
+and again at the start of another for the return.
+
+ <p>The supergraph can be seen using <samp><span class="option">-fdump-analyzer-supergraph</span></samp>.
+
+ <p>We then build an <code>analysis_plan</code> which walks the callgraph to
+determine which calls might be suitable for being summarized (rather
+than fully explored) and thus in what order to explore the functions.
+
+ <p>Next is the heart of the analyzer: we use a worklist to explore state
+within the supergraph, building an "exploded graph". 
+Nodes in the exploded graph correspond to &lt;point,&nbsp;<!-- /@w -->state&gt; pairs, as in
+     "Precise Interprocedural Dataflow Analysis via Graph Reachability"
+     (Thomas Reps, Susan Horwitz and Mooly Sagiv).
+
+ <p>We reuse nodes for &lt;point, state&gt; pairs we've already seen, and avoid
+tracking state too closely, so that (hopefully) we rapidly converge
+on a final exploded graph, and terminate the analysis.  We also bail
+out if the number of exploded &lt;end-of-basic-block, state&gt; nodes gets
+larger than a particular multiple of the total number of basic blocks
+(to ensure termination in the face of pathological state-explosion
+cases, or bugs).  We also stop exploring a point once we hit a limit
+of states for that point.
+
+ <p>We can identify problems directly when processing a &lt;point,&nbsp;<!-- /@w -->state&gt;
+instance.  For example, if we're finding the successors of
+
+<pre class="smallexample">        &lt;point: before-stmt: "free (ptr);",
+         state: {"ptr": freed}&gt;
+</pre>
+ <p>then we can detect a double-free of "ptr".  We can then emit a path
+to reach the problem by finding the simplest route through the graph.
+
+ <p>Program points in the analysis are much more fine-grained than in the
+CFG and supergraph, with points (and thus potentially exploded nodes)
+for various events, including before individual statements. 
+By default the exploded graph merges multiple consecutive statements
+in a supernode into one exploded edge to minimize the size of the
+exploded graph.  This can be suppressed via
+<samp><span class="option">-fanalyzer-fine-grained</span></samp>. 
+The fine-grained approach seems to make things simpler and more debuggable
+that other approaches I tried, in that each point is responsible for one
+thing.
+
+ <p>Program points in the analysis also have a "call string" identifying the
+stack of callsites below them, so that paths in the exploded graph
+correspond to interprocedurally valid paths: we always return to the
+correct call site, propagating state information accordingly. 
+We avoid infinite recursion by stopping the analysis if a callsite
+appears more than <code>analyzer-max-recursion-depth</code> in a callstring
+(defaulting to 2).
+
+<h4 class="subsection">27.1.2 Graphs</h4>
+
+<p>Nodes and edges in the exploded graph are called &ldquo;exploded nodes&rdquo; and
+&ldquo;exploded edges&rdquo; and often referred to in the code as
+<code>enodes</code> and <code>eedges</code> (especially when distinguishing them
+from the <code>snodes</code> and <code>sedges</code> in the supergraph).
+
+ <p>Each graph numbers its nodes, giving unique identifiers - supernodes
+are referred to throughout dumps in the form `<samp><span class="samp">SN': </span><var>index</var></samp>' and
+exploded nodes in the form `<samp><span class="samp">EN: </span><var>index</var></samp>' (e.g. `<samp><span class="samp">SN: 2</span></samp>' and
+`<samp><span class="samp">EN:29</span></samp>').
+
+ <p>The supergraph can be seen using <samp><span class="option">-fdump-analyzer-supergraph-graph</span></samp>.
+
+ <p>The exploded graph can be seen using <samp><span class="option">-fdump-analyzer-exploded-graph</span></samp>
+and other dump options.  Exploded nodes are color-coded in the .dot output
+based on state-machine states to make it easier to see state changes at
+a glance.
+
+<h4 class="subsection">27.1.3 State Tracking</h4>
+
+<p>There's a tension between:
+     <ul>
+<li>precision of analysis in the straight-line case, vs
+<li>exponential blow-up in the face of control flow. 
+</ul>
+
+ <p>For example, in general, given this CFG:
+
+<pre class="smallexample">           A
+          / \
+         B   C
+          \ /
+           D
+          / \
+         E   F
+          \ /
+           G
+</pre>
+ <p>we want to avoid differences in state-tracking in B and C from
+leading to blow-up.  If we don't prevent state blowup, we end up
+with exponential growth of the exploded graph like this:
+
+<pre class="smallexample">     
+                1:A
+               /   \
+              /     \
+             /       \
+           2:B       3:C
+            |         |
+           4:D       5:D        (2 exploded nodes for D)
+          /   \     /   \
+        6:E   7:F 8:E   9:F
+         |     |   |     |
+        10:G 11:G 12:G  13:G    (4 exploded nodes for G)
+     
+</pre>
+ <p>Similar issues arise with loops.
+
+ <p>To prevent this, we follow various approaches:
+
+     <ol type=a start=1>
+<li>state pruning: which tries to discard state that won't be relevant
+later on withing the function. 
+This can be disabled via <samp><span class="option">-fno-analyzer-state-purge</span></samp>.
+
+     <li>state merging.  We can try to find the commonality between two
+program_state instances to make a third, simpler program_state. 
+We have two strategies here:
+
+          <ol type=1 start=1>
+  <li>     the worklist keeps new nodes for the same program_point together,
+     and tries to merge them before processing, and thus before they have
+     successors.  Hence, in the above, the two nodes for D (4 and 5) reach
+     the front of the worklist together, and we create a node for D with
+     the merger of the incoming states.
+
+          <li>     try merging with the state of existing enodes for the program_point
+     (which may have already been explored).  There will be duplication,
+     but only one set of duplication; subsequent duplicates are more likely
+     to hit the cache.  In particular, (hopefully) all merger chains are
+     finite, and so we guarantee termination. 
+     This is intended to help with loops: we ought to explore the first
+     iteration, and then have a "subsequent iterations" exploration,
+     which uses a state merged from that of the first, to be more abstract.
+          </ol>
+
+     <p>We avoid merging pairs of states that have state-machine differences,
+as these are the kinds of differences that are likely to be most
+interesting.  So, for example, given:
+
+     <pre class="smallexample">                if (condition)
+                  ptr = malloc (size);
+                else
+                  ptr = local_buf;
+          
+                .... do things with 'ptr'
+          
+                if (condition)
+                  free (ptr);
+          
+                ...etc
+     </pre>
+     <p>then we end up with an exploded graph that looks like this:
+
+     <pre class="smallexample">          
+                             if (condition)
+                               / T      \ F
+                      ---------          ----------
+                     /                             \
+                ptr = malloc (size)             ptr = local_buf
+                    |                               |
+                copy of                         copy of
+                  "do things with 'ptr'"          "do things with 'ptr'"
+                with ptr: heap-allocated        with ptr: stack-allocated
+                    |                               |
+                if (condition)                  if (condition)
+                    | known to be T                 | known to be F
+                free (ptr);                         |
+                     \                             /
+                      -----------------------------
+                                   | ('ptr' is pruned, so states can be merged)
+                                  etc
+          
+     </pre>
+     <p>where some duplication has occurred, but only for the places where the
+the different paths are worth exploringly separately.
+
+     <p>Merging can be disabled via <samp><span class="option">-fno-analyzer-state-merge</span></samp>.
+      </ol>
+
+<h4 class="subsection">27.1.4 Region Model</h4>
+
+<p>Part of the state stored at a <code>exploded_node</code> is a <code>region_model</code>. 
+This is an implementation of the region-based ternary model described in
+<a href="https://www.researchgate.net/publication/221430855_A_Memory_Model_for_Static_Analysis_of_C_Programs">"A Memory Model for Static Analysis of C Programs"</a>
+(Zhongxing Xu, Ted Kremenek, and Jian Zhang).
+
+ <p>A <code>region_model</code> encapsulates a representation of the state of
+memory, with a <code>store</code> recording a binding between <code>region</code>
+instances, to <code>svalue</code> instances.  The bindings are organized into
+clusters, where regions accessible via well-defined pointer arithmetic
+are in the same cluster.  The representation is graph-like because values
+can be pointers to regions.  It also stores a constraint_manager,
+capturing relationships between the values.
+
+ <p>Because each node in the <code>exploded_graph</code> has a <code>region_model</code>,
+and each of the latter is graph-like, the <code>exploded_graph</code> is in some
+ways a graph of graphs.
+
+ <p>Here's an example of printing a <code>program_state</code>, showing the
+<code>region_model</code> within it, along with state for the <code>malloc</code>
+state machine.
+
+<pre class="smallexample">     (gdb) call debug (*this)
+     rmodel:
+     stack depth: 1
+       frame (index 0): frame: ‘test’@1
+     clusters within frame: ‘test’@1
+       cluster for: ptr_3: &amp;HEAP_ALLOCATED_REGION(12)
+     m_called_unknown_fn: FALSE
+     constraint_manager:
+       equiv classes:
+       constraints:
+     malloc:
+       0x2e89590: &amp;HEAP_ALLOCATED_REGION(12): unchecked ('ptr_3')
+</pre>
+ <p>This is the state at the point of returning from <code>calls_malloc</code> back
+to <code>test</code> in the following:
+
+<pre class="smallexample">     void *
+     calls_malloc (void)
+     {
+       void *result = malloc (1024);
+       return result;
+     }
+     
+     void test (void)
+     {
+       void *ptr = calls_malloc ();
+       /* etc.  */
+     }
+</pre>
+ <p>Within the store, there is the cluster for <code>ptr_3</code> within the frame
+for <code>test</code>, where the whole cluster is bound to a pointer value,
+pointing at <code>HEAP_ALLOCATED_REGION(12)</code>.  Additionally, this pointer
+has the <code>unchecked</code> state for the <code>malloc</code> state machine
+indicating it hasn't yet been checked against NULL since the allocation
+call.
+
+<h4 class="subsection">27.1.5 Analyzer Paths</h4>
+
+<p>We need to explain to the user what the problem is, and to persuade them
+that there really is a problem.  Hence having a <code>diagnostic_path</code>
+isn't just an incidental detail of the analyzer; it's required.
+
+ <p>Paths ought to be:
+     <ul>
+<li>interprocedurally-valid
+<li>feasible
+</ul>
+
+ <p>Without state-merging, all paths in the exploded graph are feasible
+(in terms of constraints being satisfied). 
+With state-merging, paths in the exploded graph can be infeasible.
+
+ <p>We collate warnings and only emit them for the simplest path
+e.g. for a bug in a utility function, with lots of routes to calling it,
+we only emit the simplest path (which could be intraprocedural, if
+it can be reproduced without a caller).
+
+ <p>We thus want to find the shortest feasible path through the exploded
+graph from the origin to the exploded node at which the diagnostic was
+saved.  Unfortunately, if we simply find the shortest such path and
+check if it's feasible we might falsely reject the diagnostic, as there
+might be a longer path that is feasible.  Examples include the cases
+where the diagnostic requires us to go at least once around a loop for a
+later condition to be satisfied, or where for a later condition to be
+satisfied we need to enter a suite of code that the simpler path skips.
+
+ <p>We attempt to find the shortest feasible path to each diagnostic by
+first constructing a &ldquo;trimmed graph&rdquo; from the exploded graph,
+containing only those nodes and edges from which there are paths to
+the target node, and using Dijkstra's algorithm to order the trimmed
+nodes by minimal distance to the target.
+
+ <p>We then use a worklist to iteratively build a &ldquo;feasible graph&rdquo;
+(actually a tree), capturing the pertinent state along each path, in
+which every path to a &ldquo;feasible node&rdquo; is feasible by construction,
+restricting ourselves to the trimmed graph to ensure we stay on target,
+and ordering the worklist so that the first feasible path we find to the
+target node is the shortest possible path.  Hence we start by trying the
+shortest possible path, but if that fails, we explore progressively
+longer paths, eventually trying iterations through loops.  The
+exploration is captured in the feasible_graph, which can be dumped as a
+.dot file via <samp><span class="option">-fdump-analyzer-feasibility</span></samp> to visualize the
+exploration.  The indices of the feasible nodes show the order in which
+they were created.  We effectively explore the tree of feasible paths in
+order of shortest path until we either find a feasible path to the
+target node, or hit a limit and give up.
+
+ <p>This is something of a brute-force approach, but the trimmed graph
+hopefully keeps the complexity manageable.
+
+ <p>This algorithm can be disabled (for debugging purposes) via
+<samp><span class="option">-fno-analyzer-feasibility</span></samp>, which simply uses the shortest path,
+and notes if it is infeasible.
+
+ <p>The above gives us a shortest feasible <code>exploded_path</code> through the
+<code>exploded_graph</code> (a list of <code>exploded_edge *</code>).  We use this
+<code>exploded_path</code> to build a <code>diagnostic_path</code> (a list of
+<strong>events</strong> for the diagnostic subsystem) - specifically a
+<code>checker_path</code>.
+
+ <p>Having built the <code>checker_path</code>, we prune it to try to eliminate
+events that aren't relevant, to minimize how much the user has to read.
+
+ <p>After pruning, we notify each event in the path of its ID and record the
+IDs of interesting events, allowing for events to refer to other events
+in their descriptions.  The <code>pending_diagnostic</code> class has various
+vfuncs to support emitting more precise descriptions, so that e.g.
+
+     <ul>
+<li>a deref-of-unchecked-malloc diagnostic might use:
+     <pre class="smallexample">            returning possibly-NULL pointer to 'make_obj' from 'allocator'
+     </pre>
+     <p>for a <code>return_event</code> to make it clearer how the unchecked value moves
+from callee back to caller
+<li>a double-free diagnostic might use:
+     <pre class="smallexample">            second 'free' here; first 'free' was at (3)
+     </pre>
+     <p>and a use-after-free might use
+     <pre class="smallexample">            use after 'free' here; memory was freed at (2)
+     </pre>
+     </ul>
+
+ <p>At this point we can emit the diagnostic.
+
+<h4 class="subsection">27.1.6 Limitations</h4>
+
+     <ul>
+<li>Only for C so far
+<li>The implementation of call summaries is currently very simplistic. 
+<li>Lack of function pointer analysis
+<li>The constraint-handling code assumes reflexivity in some places
+(that values are equal to themselves), which is not the case for NaN. 
+As a simple workaround, constraints on floating-point values are
+currently ignored. 
+<li>There are various other limitations in the region model (grep for TODO/xfail
+in the testsuite). 
+<li>The constraint_manager's implementation of transitivity is currently too
+expensive to enable by default and so must be manually enabled via
+<samp><span class="option">-fanalyzer-transitivity</span></samp>). 
+<li>The checkers are currently hardcoded and don't allow for user extensibility
+(e.g. adding allocate/release pairs). 
+<li>Although the analyzer's test suite has a proof-of-concept test case for
+LTO, LTO support hasn't had extensive testing.  There are various
+lang-specific things in the analyzer that assume C rather than LTO. 
+For example, SSA names are printed to the user in &ldquo;raw&rdquo; form, rather
+than printing the underlying variable name. 
+</ul>
+
+ <p>Some ideas for other checkers
+     <ul>
+<li>File-descriptor-based APIs
+<li>Linux kernel internal APIs
+<li>Signal handling
+</ul>
+
+ </body></html>
+

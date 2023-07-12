@@ -1,0 +1,170 @@
+<html lang="en">
+<head>
+<title>Regular IPA passes - GNU Compiler Collection (GCC) Internals</title>
+<meta http-equiv="Content-Type" content="text/html">
+<meta name="description" content="GNU Compiler Collection (GCC) Internals">
+<meta name="generator" content="makeinfo 4.8">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="IPA-passes.html#IPA-passes" title="IPA passes">
+<link rel="prev" href="Small-IPA-passes.html#Small-IPA-passes" title="Small IPA passes">
+<link rel="next" href="Late-IPA-passes.html#Late-IPA-passes" title="Late IPA passes">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 1988-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<p>
+<a name="Regular-IPA-passes"></a>
+Next:&nbsp;<a rel="next" accesskey="n" href="Late-IPA-passes.html#Late-IPA-passes">Late IPA passes</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="Small-IPA-passes.html#Small-IPA-passes">Small IPA passes</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="IPA-passes.html#IPA-passes">IPA passes</a>
+<hr>
+</div>
+
+<h4 class="subsection">9.4.2 Regular IPA passes</h4>
+
+<p><a name="index-regular-IPA-passes-1691"></a>
+A regular IPA pass is a pass derived from <code>ipa_opt_pass_d</code> that
+is executed in WHOPR compilation. Regular IPA passes may have summary
+hooks implemented in any of the LGEN, WPA or LTRANS stages (see <a href="IPA.html#IPA">IPA</a>).
+
+     <ul>
+<li>IPA whole program visibility
+
+     <p>This pass performs various optimizations involving symbol visibility
+with <samp><span class="option">-fwhole-program</span></samp>, including symbol privatization,
+discovering local functions, and dismantling comdat groups.  It is
+located in <samp><span class="file">ipa-visibility.cc</span></samp> and is described by
+<code>pass_ipa_whole_program_visibility</code>.
+
+     <li>IPA profile
+
+     <p>The IPA profile pass propagates profiling frequencies across the call
+graph.  It is located in <samp><span class="file">ipa-profile.cc</span></samp> and is described by
+<code>pass_ipa_profile</code>.
+
+     <li>IPA identical code folding
+
+     <p>This is the inter-procedural identical code folding pass. 
+The goal of this transformation is to discover functions
+and read-only variables that have exactly the same semantics.  It is
+located in <samp><span class="file">ipa-icf.cc</span></samp> and is described by <code>pass_ipa_icf</code>.
+
+     <li>IPA devirtualization
+
+     <p>This pass performs speculative devirtualization based on the type
+inheritance graph.  When a polymorphic call has only one likely target
+in the unit, it is turned into a speculative call. It is located in
+<samp><span class="file">ipa-devirt.cc</span></samp> and is described by <code>pass_ipa_devirt</code>.
+
+     <li>IPA constant propagation
+
+     <p>The goal of this pass is to discover functions that are always invoked
+with some arguments with the same known constant values and to modify
+the functions accordingly.  It can also do partial specialization and
+type-based devirtualization.  It is located in <samp><span class="file">ipa-cp.cc</span></samp> and is
+described by <code>pass_ipa_cp</code>.
+
+     <li>IPA scalar replacement of aggregates
+
+     <p>This pass can replace an aggregate parameter with a set of other parameters
+representing part of the original, turning those passed by reference
+into new ones which pass the value directly.  It also removes unused
+function return values and unused function parameters.  This pass is
+located in <samp><span class="file">ipa-sra.cc</span></samp> and is described by <code>pass_ipa_sra</code>.
+
+     <li>IPA constructor/destructor merge
+
+     <p>This pass merges multiple constructors and destructors for static
+objects into single functions.  It's only run at LTO time unless the
+target doesn't support constructors and destructors natively.  The
+pass is located in <samp><span class="file">ipa.cc</span></samp> and is described by
+<code>pass_ipa_cdtor_merge</code>.
+
+     <li>IPA function summary
+
+     <p>This pass provides function analysis for inter-procedural passes. 
+It collects estimates of function body size, execution time, and frame
+size for each function.  It also estimates information about function
+calls: call statement size, time and how often the parameters change
+for each call.  It is located in <samp><span class="file">ipa-fnsummary.cc</span></samp> and is
+described by <code>pass_ipa_fn_summary</code>.
+
+     <li>IPA inline
+
+     <p>The IPA inline pass handles function inlining with whole-program
+knowledge. Small functions that are candidates for inlining are
+ordered in increasing badness, bounded by unit growth parameters. 
+Unreachable functions are removed from the call graph.  Functions called
+once and not exported from the unit are inlined.  This pass is located in
+<samp><span class="file">ipa-inline.cc</span></samp> and is described by <code>pass_ipa_inline</code>.
+
+     <li>IPA pure/const analysis
+
+     <p>This pass marks functions as being either const (<code>TREE_READONLY</code>) or
+pure (<code>DECL_PURE_P</code>).  The per-function information is produced
+by <code>pure_const_generate_summary</code>, then the global information is computed
+by performing a transitive closure over the call graph.   It is located in
+<samp><span class="file">ipa-pure-const.cc</span></samp> and is described by <code>pass_ipa_pure_const</code>.
+
+     <li>IPA free function summary
+
+     <p>This pass is a regular IPA pass when argument <code>small_p</code> is false. 
+It releases inline function summaries and call summaries. 
+It is located in <samp><span class="file">ipa-fnsummary.cc</span></samp> and is described by
+<code>pass_ipa_free_fn_summary</code>.
+
+     <li>IPA reference
+
+     <p>This pass gathers information about how variables whose scope is
+confined to the compilation unit are used.  It is located in
+<samp><span class="file">ipa-reference.cc</span></samp> and is described by <code>pass_ipa_reference</code>.
+
+     <li>IPA single use
+
+     <p>This pass checks whether variables are used by a single function. 
+It is located in <samp><span class="file">ipa.cc</span></samp> and is described by
+<code>pass_ipa_single_use</code>.
+
+     <li>IPA comdats
+
+     <p>This pass looks for static symbols that are used exclusively
+within one comdat group, and moves them into that comdat group. It is
+located in <samp><span class="file">ipa-comdats.cc</span></samp> and is described by
+<code>pass_ipa_comdats</code>.
+
+ </ul>
+
+ </body></html>
+
