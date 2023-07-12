@@ -12,4 +12,5 @@ Debug/*
 build/*
 cmake/*
 .gitignore.swp
-
+arm_toolchain/*
+*.cproject
