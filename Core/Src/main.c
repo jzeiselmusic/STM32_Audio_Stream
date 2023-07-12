@@ -43,6 +43,8 @@ void Process_Data(char *);
 I2S_HandleTypeDef hi2s2;
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart4;
+DMA_HandleTypeDef hdma_i2s2_ext_rx;
+DMA_HandleTypeDef hdma_spi2_tx;
 
 osThreadId LEDScreenTaskHandle;
 
