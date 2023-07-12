@@ -4,12 +4,13 @@
 .vscode
 .settings
 *.txt
+!CMakeLists.txt
 *.json
-*.ld
 *.launch
 *.ioc
 Debug/*
 build/*
 cmake/*
 .gitignore.swp
-
+arm_toolchain/*
+*.cproject
