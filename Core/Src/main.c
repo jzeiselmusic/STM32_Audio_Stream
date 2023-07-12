@@ -1,7 +1,5 @@
 
 
-
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* user implemented complex number library */
@@ -24,8 +22,7 @@
 
 /* initializing peripheral drivers includes */
 #include "app_init.h"
-
-/* Private defines ----------------------------------------------------------*/
+#include "spi_driver.h"
 
 /* size of audio i/o ring buffer */
 #include "BUFF_SIZE.h"
@@ -39,15 +36,15 @@ void LEDScreenTask(void const *);
 void TickDelayTask(void const *);
 void Process_Data(char *);
 
-/* Private variables ---------------------------------------------------------*/
+/* handles for peripherals */
 I2S_HandleTypeDef hi2s2;
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart4;
 DMA_HandleTypeDef hdma_i2s2_ext_rx;
 DMA_HandleTypeDef hdma_spi2_tx;
-
 osThreadId LEDScreenTaskHandle;
 
+/* buffers to be used by DMA for rx and tx from I2S */
 uint16_t rx_buf[16];
 uint16_t tx_buf[16];
 
@@ -328,10 +325,6 @@ void clear_LED_screen(void) {
 	send_SPI_message(data2, 1, &hspi1);
 	send_SPI_message(data3, 1, &hspi1);
 }
-
-
-
-
 
 void Error_Handler(void)
 {

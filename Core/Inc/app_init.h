@@ -3,8 +3,6 @@
 
 #include "main.h"
 
-#define SPI_TIMEOUT 100000
-
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_DMA_Init(void);
