@@ -7,5 +7,7 @@
 #define SPI_TIMEOUT 100000
 
 void send_SPI_message(uint8_t *, uint16_t, SPI_HandleTypeDef*);
+void set_spi_handle(SPI_HandleTypeDef*);
+SPI_HandleTypeDef* get_spi_handle(void);
 
 #endif

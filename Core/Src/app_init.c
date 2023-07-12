@@ -62,7 +62,6 @@ void MX_I2S2_Init(I2S_HandleTypeDef* hi2s2)
 
 void MX_SPI1_Init(SPI_HandleTypeDef* hspi1)
 {
-
   hspi1->Instance = SPI1;
   hspi1->Init.Mode = SPI_MODE_MASTER;
   hspi1->Init.Direction = SPI_DIRECTION_2LINES;
@@ -79,11 +78,11 @@ void MX_SPI1_Init(SPI_HandleTypeDef* hspi1)
   {
     Error_Handler();
   }
-
+  /* set spi handle for life of program to be used by anyone*/
+  set_spi_handle(hspi1);
   uint8_t data[1] = {0x00};
-  // send initial empty message to initialize values
+  /* send initial empty message to initialize values */
   send_SPI_message(data, 1, hspi1);
-
 }
 
 
