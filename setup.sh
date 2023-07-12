@@ -14,6 +14,6 @@ tar -xf out.tar.xz --directory=./arm_toolchain
 
 rm -rf out.tar.xz
 
-echo "\nremoving all instances of libc_nano.a in toolchain path\n"
+echo "removing all instances of libc_nano.a in toolchain path\n"
 
 find arm_toolchain -name "libc_nano.a" -type f -exec rm {} +
