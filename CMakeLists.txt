@@ -61,6 +61,7 @@ set(ARM_TOOLCHAIN_INCLUDES ${ARM_TOOLCHAIN_PATH}/arm-none-eabi/include ${ARM_TOO
 set(EXECUTABLE_TARGET ${PROJECT_NAME}${APP_EXECUTABLE_EXTENSION})
 
 add_executable(${EXECUTABLE_TARGET}
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/app_init.c
     ${DSP_LIB_PATH}/Linear_Filtering/lpf.c
     ${DSP_LIB_PATH}/Src/complex_numbers.c
     ${DSP_LIB_PATH}/Fourier_Transform/fourier.c
