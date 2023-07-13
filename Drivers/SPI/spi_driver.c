@@ -2,7 +2,7 @@
 #include "main.h"
 
 static SPI_HandleTypeDef* perpetual_spi_handle;
-/* set set flag if spi handle has been set */
+/* set set flag if spi has been initialized */
 static int set_flag = 0;
 
 void set_spi_handle(SPI_HandleTypeDef* spihandle)
