@@ -42,22 +42,24 @@ uint8_t read_uart_char(void)
     }
     else 
     {
-        return (uint8_t)(NULL);
+        return (uint8_t)(0);
     }
 }
 
 /* blocking UART receive until receive a carriage return */
-void read_uart_line(uint8_t* buffer, uint16_t size)
+void read_uart_line(uint8_t* buffer, uint16_t* num_read, uint16_t max_size)
 {
     if (set_flag)
     {
-        int n = 0;
+        uint16_t n = 0;
         uint8_t val;
         do
         {
             val = read_uart_char();
             buffer[n] = val;
             n += 1;
-        } while (n <= size && val != '\r');
+        } while (n <= max_size && val != '\r');
+
+        *num_read = n;
     }
 }

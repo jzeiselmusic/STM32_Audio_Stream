@@ -61,6 +61,7 @@ set(ARM_TOOLCHAIN_INCLUDES ${ARM_TOOLCHAIN_PATH}/arm-none-eabi/include ${ARM_TOO
 set(EXECUTABLE_TARGET ${PROJECT_NAME}${APP_EXECUTABLE_EXTENSION})
 
 add_executable(${EXECUTABLE_TARGET}
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/BLE/ble_mod.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/UART/uart_comm.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/OLED/oled.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/SPI/spi_driver.c
@@ -131,11 +132,17 @@ target_include_directories(${EXECUTABLE_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/SPI
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/OLED
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/UART
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/BLE
 )
 
 # linker script
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32F407VETX_FLASH.ld)
 target_link_options(${EXECUTABLE_TARGET} PRIVATE -mcpu=cortex-m4 -T${LINKER_SCRIPT} ${LINKER_FLAGS})
+
+add_custom_command(TARGET ${EXECUTABLE_TARGET} POST_BUILD
+    # make binary from elf
+    COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${EXECUTABLE_TARGET}> output.bin
+)
 
 add_custom_target(main_build
     COMMAND make -j ${EXECUTABLE_TARGET}

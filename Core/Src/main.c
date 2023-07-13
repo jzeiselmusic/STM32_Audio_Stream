@@ -22,6 +22,7 @@
 #include "app_init.h"
 #include "spi_driver.h"
 #include "oled.h"
+#include "ble_mod.h" 
 
 /* size of audio i/o ring buffer */
 #include "BUFF_SIZE.h"
@@ -139,6 +140,16 @@ void LEDScreenTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
   start_LED_screen();
+
+  /* try to communicate with BLE module */
+  if (HAL_OK != enter_command_mode())
+  {
+	set_color(COLOR_RED);
+  }
+  else 
+  {
+	set_color(COLOR_GREEN);
+  }
   uint8_t start_column = 0x08;
   uint8_t start_row = 0x01;
   uint8_t end_column = 0x0E;

@@ -3,6 +3,23 @@
 #include "spi_driver.h"
 #include "cmsis_os.h"
 
+static uint8_t color_red[3]   = {0xff, 0x00, 0x00};
+static uint8_t color_blue[3]  = {0x00, 0x00, 0xff};
+static uint8_t color_green[3] = {0x00, 0xff, 0x00};
+
+static uint8_t* oled_color = color_red;
+
+void set_color(TypeDef_OLED_Color choice) 
+{
+  switch(choice) 
+  {
+    case COLOR_RED:   oled_color = color_red;
+    case COLOR_GREEN: oled_color = color_blue;
+    case COLOR_BLUE:  oled_color = color_green;
+  }
+
+}
+
 void start_LED_screen(void) {
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET); // set D/C to low always
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // bring VCCen low
@@ -95,13 +112,13 @@ void draw_Rectangle(uint8_t start_column, uint8_t start_row,
 	send_SPI_message(pData26, 1);
 	uint8_t pData27[1] = {end_row};
 	send_SPI_message(pData27, 1);
-	uint8_t color1[1] = {0x28};
+	uint8_t color1[1] = {oled_color[0]};
 	send_SPI_message(color1, 1);
-	uint8_t color2[1] = {0x10};
+	uint8_t color2[1] = {oled_color[1]};
 	send_SPI_message(color2, 1);
-	uint8_t color3[1] = {0x00};
+	uint8_t color3[1] = {oled_color[2]};
 	send_SPI_message(color3, 1);
-	uint8_t color4[1] = {0x28};
+	uint8_t color4[1] = {0x00};
 	send_SPI_message(color4, 1);
 	uint8_t color5[1] = {0x00};
 	send_SPI_message(color5, 1);
