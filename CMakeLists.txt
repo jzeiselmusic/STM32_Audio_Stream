@@ -61,8 +61,9 @@ set(ARM_TOOLCHAIN_INCLUDES ${ARM_TOOLCHAIN_PATH}/arm-none-eabi/include ${ARM_TOO
 set(EXECUTABLE_TARGET ${PROJECT_NAME}${APP_EXECUTABLE_EXTENSION})
 
 add_executable(${EXECUTABLE_TARGET}
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/UART/uart_comm.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/OLED/oled.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/SPI/Src/spi_driver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/SPI/spi_driver.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/app_init.c
     ${DSP_LIB_PATH}/Linear_Filtering/lpf.c
     ${DSP_LIB_PATH}/Src/complex_numbers.c
@@ -127,8 +128,9 @@ target_include_directories(${EXECUTABLE_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/Fourier_Transform
     ${CMAKE_CURRENT_SOURCE_DIR}/DSP/Linear_Filtering
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/SPI/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/SPI
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/OLED
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/UART
 )
 
 # linker script

@@ -10,6 +10,4 @@ void MX_I2S2_Init(I2S_HandleTypeDef*);
 void MX_UART4_Init(UART_HandleTypeDef*);
 void MX_SPI1_Init(SPI_HandleTypeDef*);
 
-void send_SPI_message(uint8_t *, uint16_t, SPI_HandleTypeDef*);
-
 #endif

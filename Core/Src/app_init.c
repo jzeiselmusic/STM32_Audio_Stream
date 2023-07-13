@@ -82,7 +82,7 @@ void MX_SPI1_Init(SPI_HandleTypeDef* hspi1)
   set_spi_handle(hspi1);
   uint8_t data[1] = {0x00};
   /* send initial empty message to initialize values */
-  send_SPI_message(data, 1, hspi1);
+  send_SPI_message(data, 1);
 }
 
 
