@@ -4,8 +4,8 @@
 #include "cmsis_os.h"
 
 static uint8_t color_red[3]   = {0xff, 0x00, 0x00};
-static uint8_t color_blue[3]  = {0x00, 0x00, 0xff};
 static uint8_t color_green[3] = {0x00, 0xff, 0x00};
+static uint8_t color_blue[3]  = {0x00, 0x00, 0xff};
 
 static uint8_t* oled_color = color_red;
 
@@ -14,8 +14,8 @@ void set_color(TypeDef_OLED_Color choice)
   switch(choice) 
   {
     case COLOR_RED:   oled_color = color_red;
-    case COLOR_GREEN: oled_color = color_blue;
-    case COLOR_BLUE:  oled_color = color_green;
+    case COLOR_GREEN: oled_color = color_green;
+    case COLOR_BLUE:  oled_color = color_blue;
   }
 
 }

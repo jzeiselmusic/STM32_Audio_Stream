@@ -150,6 +150,15 @@ void LEDScreenTask(void const * argument)
   {
 	set_color(COLOR_GREEN);
   }
+
+  if (HAL_OK != start_advertising())
+  {
+	set_color(COLOR_BLUE);
+  }
+  else
+  {
+	set_color(COLOR_GREEN);
+  }
   uint8_t start_column = 0x08;
   uint8_t start_row = 0x01;
   uint8_t end_column = 0x0E;
